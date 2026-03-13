@@ -52,6 +52,7 @@ interface Tenant {
 
 interface Payment {
   tenant_id: string;
+  amount?: number;
 }
 
 // ── Storage keys (now user-scoped via lib/storage) ────────────────────────────
@@ -241,7 +242,10 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
     const currentMonth = todayStr.slice(0, 7);
-    const paidTenantIds = new Set(payments.map((p) => p.tenant_id));
+    const paidByTenantMap = new Map<string, number>();
+    for (const p of payments) {
+      paidByTenantMap.set(p.tenant_id, (paidByTenantMap.get(p.tenant_id) ?? 0) + (p.amount ?? 0));
+    }
     const isAr = lang === "ar";
 
     // Helper to replace %placeholders%
@@ -257,7 +261,8 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
       if ((tn.status && tn.status !== "active") || !tn.lease_start) continue;
 
       const dueDay = new Date(tn.lease_start + "T12:00:00").getDate();
-      const hasPaid = paidTenantIds.has(tn.id);
+      const totalPaid = paidByTenantMap.get(tn.id) ?? 0;
+      const hasPaid = totalPaid >= tn.monthly_rent;
 
       // ── Rent due reminder ───────────────────────────────────────────────────
       if (s.rentRemindersEnabled && !hasPaid) {

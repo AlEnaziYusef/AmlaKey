@@ -199,7 +199,7 @@ export default function PropertyUnitsScreen() {
       const [{ data: tenants }, { data: labels }, { data: payments }] = await Promise.all([
         supabase.from("tenants").select("id, name, unit_number, status, monthly_rent, lease_start").eq("property_id", id),
         supabase.from("unit_labels").select("unit_number, label, sec_account, nwc_account").eq("property_id", id),
-        supabase.from("payments").select("tenant_id, month_year").eq("property_id", id),
+        supabase.from("payments").select("tenant_id, month_year, amount").eq("property_id", id),
       ]);
       const tMap: TenantMap = {};
       (tenants ?? []).forEach((t: any) => {
@@ -216,16 +216,20 @@ export default function PropertyUnitsScreen() {
       });
       setLabelMap(lMap);
       setUnitAccountMap(uaMap);
-      // Compute overdue units (#20)
+      // Compute overdue units — only fully paid tenants are excluded
       const now = new Date();
       const currentDay = now.getDate();
       const currentMonthYear = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
-      const paidIds = new Set((payments ?? []).filter((p: any) => p.month_year === currentMonthYear).map((p: any) => p.tenant_id));
+      const paidByTenantMap = new Map<string, number>();
+      (payments ?? []).filter((p: any) => p.month_year === currentMonthYear).forEach((p: any) => {
+        paidByTenantMap.set(p.tenant_id, (paidByTenantMap.get(p.tenant_id) ?? 0) + (p.amount ?? 0));
+      });
       const odu = new Set<string>();
       (tenants ?? []).forEach((tn: any) => {
         if (tn.status !== "active" || !tn.lease_start) return;
         const dueDay = new Date(tn.lease_start + "T12:00:00").getDate();
-        if (currentDay >= dueDay && !paidIds.has(tn.id)) {
+        const totalPaid = paidByTenantMap.get(tn.id) ?? 0;
+        if (currentDay >= dueDay && totalPaid < (tn.monthly_rent ?? 0)) {
           odu.add(String(tn.unit_number));
         }
       });

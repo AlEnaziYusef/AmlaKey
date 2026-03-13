@@ -126,18 +126,22 @@ export default function PerformanceScreen() {
     setPayments(pays ?? []);
     setExpensesData(exps ?? []);
 
-    // Overdue computation — always uses current month regardless of selected time period
+    // Overdue computation — only fully paid tenants are excluded
     {
       const thisMonth = new Date().toISOString().slice(0, 7);
-      const { data: monthPays } = await supabase.from("payments").select("tenant_id").eq("month_year", thisMonth);
-      const paidIds = new Set((monthPays ?? []).map((p: any) => p.tenant_id));
+      const { data: monthPays } = await supabase.from("payments").select("tenant_id, amount").eq("month_year", thisMonth);
+      const paidByTenantMap = new Map<string, number>();
+      for (const p of (monthPays ?? [])) {
+        paidByTenantMap.set(p.tenant_id, (paidByTenantMap.get(p.tenant_id) ?? 0) + (p.amount ?? 0));
+      }
       const today = new Date();
       const currentDay = today.getDate();
       const list = (tenants ?? [])
         .filter((tn: any) => {
           if (!tn.lease_start) return false;
           const dueDay = new Date(tn.lease_start + "T12:00:00").getDate();
-          return currentDay >= dueDay && !paidIds.has(tn.id);
+          const totalPaid = paidByTenantMap.get(tn.id) ?? 0;
+          return currentDay >= dueDay && totalPaid < (tn.monthly_rent ?? 0);
         })
         .map((tn: any) => {
           const dueDay = new Date(tn.lease_start + "T12:00:00").getDate();

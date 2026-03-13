@@ -151,7 +151,7 @@ export default function DashboardScreen() {
       supabase.from("tenants").select("id, status"),
       supabase.from("expenses").select("amount, date").gte("date", `${thisMonth}-01`).lte("date", `${thisMonth}-31`),
       supabase.from("payments").select("amount").eq("month_year", thisMonth),
-      supabase.from("payments").select("tenant_id").eq("month_year", thisMonth),
+      supabase.from("payments").select("tenant_id, amount").eq("month_year", thisMonth),
       supabase.from("tenants")
         .select("id, name, unit_number, monthly_rent, created_at, properties(id, name)")
         .order("created_at", { ascending: false }).limit(3),
@@ -179,15 +179,19 @@ export default function DashboardScreen() {
       occupied: (activeTenants ?? []).filter((tn: any) => tn.property_id === p.id).length,
     })));
 
-    // Compute overdue tenants
+    // Compute overdue tenants — only fully paid tenants are excluded
     const today = new Date();
     const currentDay = today.getDate();
-    const paidTenantIds = new Set((payByTenant ?? []).map((p: any) => p.tenant_id));
+    const paidByTenantMap = new Map<string, number>();
+    for (const p of (payByTenant ?? [])) {
+      paidByTenantMap.set(p.tenant_id, (paidByTenantMap.get(p.tenant_id) ?? 0) + (p.amount ?? 0));
+    }
     const overdueList: OverdueTenant[] = [];
     for (const tn of (activeTenants ?? [])) {
       if (!tn.lease_start) continue;
       const dueDay = new Date(tn.lease_start + "T12:00:00").getDate();
-      if (currentDay >= dueDay && !paidTenantIds.has(tn.id)) {
+      const totalPaid = paidByTenantMap.get(tn.id) ?? 0;
+      if (currentDay >= dueDay && totalPaid < tn.monthly_rent) {
         const daysOverdue = currentDay - dueDay;
         overdueList.push({
           id: tn.id,
