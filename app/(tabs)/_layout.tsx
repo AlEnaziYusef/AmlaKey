@@ -1,35 +1,34 @@
-import { Tabs } from 'expo-router';
-import React from 'react';
+import { Tabs } from "expo-router";
+import { Ionicons } from "@expo/vector-icons";
+import { useLanguage } from "../../context/LanguageContext";
+import { useTheme } from "../../context/ThemeContext";
 
-import { HapticTab } from '@/components/haptic-tab';
-import { IconSymbol } from '@/components/ui/icon-symbol';
-import { Colors } from '@/constants/theme';
-import { useColorScheme } from '@/hooks/use-color-scheme';
-
-export default function TabLayout() {
-  const colorScheme = useColorScheme();
-
+export default function TabsLayout() {
+  const { t, isRTL } = useLanguage();
+  const { colors } = useTheme();
   return (
     <Tabs
       screenOptions={{
-        tabBarActiveTintColor: Colors[colorScheme ?? 'light'].tint,
         headerShown: false,
-        tabBarButton: HapticTab,
-      }}>
-      <Tabs.Screen
-        name="index"
-        options={{
-          title: 'Home',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="house.fill" color={color} />,
-        }}
-      />
-      <Tabs.Screen
-        name="explore"
-        options={{
-          title: 'Explore',
-          tabBarIcon: ({ color }) => <IconSymbol size={28} name="paperplane.fill" color={color} />,
-        }}
-      />
+        tabBarActiveTintColor: colors.accent,
+        tabBarInactiveTintColor: colors.textMuted,
+        tabBarStyle: { backgroundColor: colors.surfaceElevated, borderTopColor: colors.border, flexDirection: isRTL ? "row-reverse" : "row" },
+        tabBarLabelStyle: { fontSize: 12, fontWeight: "600" },
+      }}
+    >
+      <Tabs.Screen name="index" options={{ title: t("dashboard"),
+        tabBarAccessibilityLabel: t("dashboard"),
+        tabBarIcon: ({ color, size }) => <Ionicons name="speedometer-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="properties" options={{ title: t("properties"),
+        tabBarAccessibilityLabel: t("properties"),
+        tabBarIcon: ({ color, size }) => <Ionicons name="business-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="expenses" options={{ title: t("expenses"),
+        tabBarAccessibilityLabel: t("expenses"),
+        tabBarIcon: ({ color, size }) => <Ionicons name="receipt-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="profile" options={{ title: t("profile"),
+        tabBarAccessibilityLabel: t("profile"),
+        tabBarIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} /> }} />
+      <Tabs.Screen name="tenants" options={{ href: null }} />
     </Tabs>
   );
 }

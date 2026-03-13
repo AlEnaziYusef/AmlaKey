@@ -1,0 +1,683 @@
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import {
+  ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView,
+  StyleSheet, Text, TextInput, TouchableOpacity,
+  TouchableWithoutFeedback, View,
+} from "react-native";
+import { router } from "expo-router";
+import * as Location from "expo-location";
+import { supabase } from "../../lib/supabase";
+import { useLanguage } from "../../context/LanguageContext";
+import { useTheme } from "../../context/ThemeContext";
+import { SwipeableRow, SwipeableRowRef } from "../../components/SwipeableRow";
+import { SkeletonList } from "../../components/SkeletonLoader";
+
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
+import { useAuth } from "../../context/AuthContext";
+import { userKey, PERSONAL_INFO_KEY } from "../../lib/storage";
+import { spacing, radii } from "../../constants/theme";
+
+type PropertyType = "apartment" | "villa" | "commercial" | "shop";
+const CITIES = ["alkharj", "riyadh", "jeddah", "dammam"];
+
+interface Property {
+  id: string; name: string; type: PropertyType; city: string;
+  total_units: number; floors: number; monthly_income: number; notes?: string;
+  sec_account?: string; nwc_account?: string;
+  has_multiple_sec?: boolean; has_multiple_nwc?: boolean;
+  latitude?: number | null; longitude?: number | null;
+}
+
+type FormState = {
+  name: string; type: PropertyType; city: string;
+  total_units: string; floors: string; monthly_income: string; notes: string;
+  sec_account: string; nwc_account: string;
+  has_multiple_sec: boolean; has_multiple_nwc: boolean;
+  latitude: number | null; longitude: number | null;
+};
+
+const EMPTY_FORM: FormState = {
+  name: "", type: "apartment", city: "alkharj",
+  total_units: "", floors: "", monthly_income: "", notes: "",
+  sec_account: "", nwc_account: "",
+  has_multiple_sec: false, has_multiple_nwc: false,
+  latitude: null, longitude: null,
+};
+
+const TYPE_COLORS: Record<PropertyType, string> = {
+  apartment: "#0EA5E9", villa: "#14B8A6", commercial: "#F59E0B", shop: "#A855F7",
+};
+const TYPE_ICONS: Record<PropertyType, string> = {
+  apartment: "🏢", villa: "🏡", commercial: "🏗️", shop: "🛍️",
+};
+
+export default function PropertiesScreen() {
+  const { t, isRTL } = useLanguage();
+  const { colors: C, shadow } = useTheme();
+  const { user } = useAuth();
+  const insets = useSafeAreaInsets();
+  const uid = user?.id ?? "";
+  const S = useMemo(() => styles(C, shadow), [C, shadow]);
+
+  const [properties, setProperties] = useState<Property[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const swipeRefs = useRef<Map<string, SwipeableRowRef | null>>(new Map());
+  const openSwipeId = useRef<string | null>(null);
+
+  // Add modal
+  const [addVisible, setAddVisible] = useState(false);
+  const [form, setForm] = useState<FormState>(EMPTY_FORM);
+  const [saving, setSaving] = useState(false);
+
+  // Edit modal
+  const [editVisible, setEditVisible] = useState(false);
+  const [editTarget, setEditTarget] = useState<Property | null>(null);
+  const [editForm, setEditForm] = useState<FormState>(EMPTY_FORM);
+  const [editSaving, setEditSaving] = useState(false);
+
+  const [addPropErrors, setAddPropErrors] = useState<Record<string, string>>({});
+  const [editPropErrors, setEditPropErrors] = useState<Record<string, string>>({});
+
+  const [defaultCity, setDefaultCity] = useState("alkharj");
+
+  // City name mapping: reverse-geocoded names → our city keys
+  const CITY_ALIASES: Record<string, string> = {
+    "riyadh": "riyadh", "الرياض": "riyadh", "riyad": "riyadh",
+    "jeddah": "jeddah", "جدة": "jeddah", "jiddah": "jeddah", "jedda": "jeddah",
+    "dammam": "dammam", "الدمام": "dammam", "ad dammam": "dammam",
+    "alkharj": "alkharj", "الخرج": "alkharj", "al kharj": "alkharj", "al-kharj": "alkharj",
+  };
+
+  function matchCity(geocodedCity: string): string | null {
+    const lower = geocodedCity.toLowerCase().trim();
+    if (CITY_ALIASES[lower]) return CITY_ALIASES[lower];
+    // Partial match
+    for (const [alias, key] of Object.entries(CITY_ALIASES)) {
+      if (lower.includes(alias) || alias.includes(lower)) return key;
+    }
+    return null;
+  }
+
+  async function detectCityFromLocation(setFormFn: (fn: (prev: FormState) => FormState) => void) {
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") return;
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      const [geo] = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      if (geo) {
+        const cityName = geo.city || geo.subregion || geo.region || "";
+        const matched = matchCity(cityName);
+        setFormFn((prev) => ({
+          ...prev,
+          latitude: loc.coords.latitude,
+          longitude: loc.coords.longitude,
+          city: matched ?? cityName, // matched key or raw city name for "other"
+        }));
+      } else {
+        // No geocode result, still save coords
+        setFormFn((prev) => ({ ...prev, latitude: loc.coords.latitude, longitude: loc.coords.longitude }));
+      }
+    } catch {
+      // Silently fail — user can pick city manually
+    }
+  }
+
+  useEffect(() => {
+    if (!uid) return;
+    AsyncStorage.getItem(userKey(uid, PERSONAL_INFO_KEY)).then((raw) => {
+      if (raw) {
+        try { const info = JSON.parse(raw); if (info.city) setDefaultCity(info.city); } catch {}
+      }
+    });
+  }, [uid]);
+
+  useEffect(() => { fetchProperties(); }, []);
+
+  async function fetchProperties() {
+    setLoading(true);
+    const { data } = await supabase.from("properties").select("*").order("created_at", { ascending: false });
+    if (data) setProperties(data);
+    setLoading(false);
+  }
+
+  async function addProperty() {
+    const errors: Record<string, string> = {};
+    if (!form.name.trim() || form.name.trim().length < 2) {
+      errors.name = t("validationPropertyNameShort");
+    }
+    const units = parseInt(form.total_units);
+    if (form.total_units && (isNaN(units) || units < 1)) {
+      errors.units = t("validationUnitsRequired");
+    } else if (units > 500) {
+      errors.units = t("validationUnitsMax");
+    }
+    const floors = parseInt(form.floors);
+    if (form.floors && floors > 100) {
+      errors.floors = t("validationFloorsMax");
+    }
+    const income = parseFloat(form.monthly_income);
+    if (form.monthly_income && income > 9999999) {
+      errors.income = t("validationAmountTooHigh");
+    }
+    setAddPropErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    setSaving(true);
+    const { error } = await supabase.from("properties").insert([{
+      name: form.name.trim(), type: form.type, city: form.city,
+      total_units: parseInt(form.total_units) || 1,
+      floors: parseInt(form.floors) || 1,
+      monthly_income: parseFloat(form.monthly_income) || 0,
+      notes: form.notes.trim() || null,
+      sec_account: form.has_multiple_sec ? null : (form.sec_account.trim() || null),
+      nwc_account: form.has_multiple_nwc ? null : (form.nwc_account.trim() || null),
+      has_multiple_sec: form.has_multiple_sec,
+      has_multiple_nwc: form.has_multiple_nwc,
+      latitude: form.latitude,
+      longitude: form.longitude,
+    }]);
+    setSaving(false);
+    if (error) { Alert.alert(t("error"), error.message); }
+    else {
+      setAddVisible(false);
+      setForm(EMPTY_FORM);
+      fetchProperties();
+    }
+  }
+
+  function openEdit(p: Property) {
+    setEditTarget(p);
+    setEditPropErrors({});
+    setEditForm({
+      name: p.name, type: p.type, city: p.city ?? "alkharj",
+      total_units: String(p.total_units), floors: String(p.floors),
+      monthly_income: String(p.monthly_income), notes: p.notes ?? "",
+      sec_account: p.sec_account ?? "", nwc_account: p.nwc_account ?? "",
+      has_multiple_sec: p.has_multiple_sec ?? false, has_multiple_nwc: p.has_multiple_nwc ?? false,
+      latitude: p.latitude ?? null, longitude: p.longitude ?? null,
+    });
+    setEditVisible(true);
+  }
+
+  async function saveEdit() {
+    const errors: Record<string, string> = {};
+    if (!editTarget) return;
+    if (!editForm.name.trim() || editForm.name.trim().length < 2) {
+      errors.name = t("validationPropertyNameShort");
+    }
+    const units = parseInt(editForm.total_units);
+    if (editForm.total_units && (isNaN(units) || units < 1)) {
+      errors.units = t("validationUnitsRequired");
+    } else if (units > 500) {
+      errors.units = t("validationUnitsMax");
+    }
+    const floors = parseInt(editForm.floors);
+    if (editForm.floors && floors > 100) {
+      errors.floors = t("validationFloorsMax");
+    }
+    const income = parseFloat(editForm.monthly_income);
+    if (editForm.monthly_income && income > 9999999) {
+      errors.income = t("validationAmountTooHigh");
+    }
+    setEditPropErrors(errors);
+    if (Object.keys(errors).length > 0) return;
+    setEditSaving(true);
+    const { error } = await supabase
+      .from("properties")
+      .update({
+        name: editForm.name.trim(), type: editForm.type, city: editForm.city,
+        total_units: parseInt(editForm.total_units) || editTarget.total_units,
+        floors: parseInt(editForm.floors) || editTarget.floors,
+        monthly_income: parseFloat(editForm.monthly_income) || editTarget.monthly_income,
+        notes: editForm.notes.trim() || null,
+        sec_account: editForm.has_multiple_sec ? null : (editForm.sec_account.trim() || null),
+        nwc_account: editForm.has_multiple_nwc ? null : (editForm.nwc_account.trim() || null),
+        has_multiple_sec: editForm.has_multiple_sec,
+        has_multiple_nwc: editForm.has_multiple_nwc,
+        latitude: editForm.latitude,
+        longitude: editForm.longitude,
+      })
+      .eq("id", editTarget.id);
+    setEditSaving(false);
+    if (error) { Alert.alert(t("error"), error.message); }
+    else {
+      setEditVisible(false);
+      setEditTarget(null);
+      fetchProperties();
+    }
+  }
+
+  function confirmDelete(p: Property) {
+    Alert.alert(
+      t("deletePropertyTitle"),
+      `${t("delete")} "${p.name}"? ${t("deletePropertyMsg")}`,
+      [
+        { text: t("cancel"), style: "cancel" },
+        {
+          text: t("delete"), style: "destructive", onPress: async () => {
+            const { error } = await supabase.from("properties").delete().eq("id", p.id);
+            if (error) Alert.alert(t("error"), error.message);
+            else fetchProperties();
+          },
+        },
+      ]
+    );
+  }
+
+  const displayedProperties = useMemo(() => {
+    const q = searchQuery.trim().toLowerCase();
+    if (!q) return properties;
+    return properties.filter((p) => p.name.toLowerCase().includes(q));
+  }, [properties, searchQuery]);
+
+  const totalUnits = properties.reduce((s, p) => s + p.total_units, 0);
+  const totalIncome = properties.reduce((s, p) => s + p.monthly_income, 0);
+
+  return (
+    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+      <View style={S.container}>
+        <View style={[S.header, { paddingTop: insets.top + 10 }, isRTL && S.rowRev]}>
+          <Text style={S.headerTitle}>{t("properties")}</Text>
+          <TouchableOpacity style={S.addBtn} onPress={() => { const f = { ...EMPTY_FORM, city: defaultCity }; setForm(f); setAddPropErrors({}); setAddVisible(true); detectCityFromLocation(setForm); }} accessibilityRole="button" accessibilityLabel={t("addProperty")}>
+            <Text style={S.addBtnText}>+ {t("add")}</Text>
+          </TouchableOpacity>
+        </View>
+
+        <View style={S.searchBar}>
+          <Text style={S.searchIcon}>🔍</Text>
+          <TextInput
+            style={[S.searchInput, isRTL && { textAlign: "right" }]}
+            value={searchQuery}
+            onChangeText={setSearchQuery}
+            placeholder={t("searchProperties")}
+            placeholderTextColor={C.textMuted}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+            accessibilityLabel={t("searchProperties")}
+            accessibilityRole="search"
+          />
+          {searchQuery.length > 0 && (
+            <TouchableOpacity onPress={() => setSearchQuery("")} style={S.searchClearBtn} accessibilityRole="button" accessibilityLabel="Clear search">
+              <Text style={S.searchClearText}>✕</Text>
+            </TouchableOpacity>
+          )}
+        </View>
+
+        <View style={[S.summaryRow, isRTL && S.rowRev]}>
+          {[
+            { val: properties.length, lbl: t("properties") },
+            { val: totalUnits, lbl: t("totalUnits") },
+            { val: totalIncome.toLocaleString(), lbl: `${t("sar")}/mo` },
+          ].map((item) => (
+            <View key={item.lbl} style={S.summaryCard}>
+              <Text style={S.summaryVal}>{item.val}</Text>
+              <Text style={S.summaryLbl}>{item.lbl}</Text>
+            </View>
+          ))}
+        </View>
+
+        {loading ? (
+          <SkeletonList count={5} />
+        ) : (
+          <ScrollView
+            contentContainerStyle={S.listContent}
+            keyboardShouldPersistTaps="handled"
+            onScrollBeginDrag={() => {
+              if (openSwipeId.current) {
+                swipeRefs.current.get(openSwipeId.current)?.close();
+                openSwipeId.current = null;
+              }
+            }}
+          >
+            {displayedProperties.length === 0 && (
+              <Text style={S.emptyText}>{searchQuery ? t("noResults") : t("noProperties")}</Text>
+            )}
+            {displayedProperties.map((p) => (
+              <SwipeableRow
+                key={p.id}
+                ref={(r) => { swipeRefs.current.set(p.id, r); }}
+                isRTL={isRTL}
+                onEdit={() => openEdit(p)}
+                onDelete={() => confirmDelete(p)}
+                editLabel={t("edit") ?? "Edit"}
+                deleteLabel={t("delete") ?? "Delete"}
+                borderRadius={radii.lg}
+                onSwipeOpen={() => {
+                  if (openSwipeId.current && openSwipeId.current !== p.id) {
+                    swipeRefs.current.get(openSwipeId.current)?.close();
+                  }
+                  openSwipeId.current = p.id;
+                }}
+                onSwipeClose={() => {
+                  if (openSwipeId.current === p.id) openSwipeId.current = null;
+                }}
+              >
+                <TouchableOpacity
+                  style={S.card}
+                  activeOpacity={0.75}
+                  onPress={() => router.push({
+                    pathname: `/property/${p.id}` as any,
+                    params: { name: p.name, total_units: p.total_units, type: p.type },
+                  })}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${p.name}, ${t(p.type as any)}, ${p.total_units} ${t("units")}, ${p.monthly_income.toLocaleString()} ${t("sar")}`}
+                  accessibilityHint={t("tapToViewUnits")}
+                >
+                  <View style={[S.cardHeader, isRTL && S.rowRev]}>
+                    <Text style={S.cardIcon}>{TYPE_ICONS[p.type] ?? "🏠"}</Text>
+                    <View style={{ flex: 1, marginHorizontal: 8 }}>
+                      <Text style={[S.cardName, isRTL && { textAlign: "right" }]}>{p.name}</Text>
+                      <Text style={[S.cardCity, isRTL && { textAlign: "right" }]}>{p.city}</Text>
+                      {!!p.notes && (
+                        <Text style={[S.cardNotes, isRTL && { textAlign: "right" }]} numberOfLines={1}>
+                          📝 {p.notes}
+                        </Text>
+                      )}
+                    </View>
+                    <View style={[S.badge, { backgroundColor: TYPE_COLORS[p.type] ?? C.primary }]}>
+                      <Text style={S.badgeText}>{t(p.type as any)}</Text>
+                    </View>
+                  </View>
+                  <View style={S.divider} />
+                  <View style={[S.cardStats, isRTL && S.rowRev]}>
+                    <Text style={S.statText}>🏠 {p.total_units} {t("units")}</Text>
+                    <Text style={S.statText}>🏗 {p.floors} {t("floors")}</Text>
+                    <Text style={S.incomeText}>{p.monthly_income.toLocaleString()} {t("sar")}</Text>
+                  </View>
+                  <Text style={[S.viewHint, isRTL && { textAlign: "right" }, { marginTop: 8 }]}>
+                    {isRTL ? `‹ ${t("tapToViewUnits")}` : `${t("tapToViewUnits")} ›`}
+                  </Text>
+                </TouchableOpacity>
+              </SwipeableRow>
+            ))}
+            <View style={{ height: 100 }} />
+          </ScrollView>
+        )}
+
+        {/* ── Add Modal ── */}
+        <Modal visible={addVisible} animationType="slide" transparent onRequestClose={() => setAddVisible(false)}>
+          <View style={S.modalOverlay}>
+            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setAddVisible(false); }} />
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
+              <ScrollView keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={true}>
+                <View style={S.modalBox}>
+                  <Text style={S.modalTitle}>{t("addProperty")}</Text>
+                  <TextInput style={[S.input, isRTL && { textAlign: "right" }, !!addPropErrors.name && S.inputError]}
+                    placeholder={t("propertyName")} placeholderTextColor={C.textMuted}
+                    returnKeyType="done" value={form.name}
+                    onChangeText={(v) => { setForm({ ...form, name: v }); setAddPropErrors((e) => ({ ...e, name: v.trim().length > 0 && v.trim().length < 2 ? t("validationPropertyNameShort") : "" })); }} />
+                  {!!addPropErrors.name && <Text style={S.fieldError}>{addPropErrors.name}</Text>}
+                  <Text style={S.fieldLabel}>{t("type")}</Text>
+                  <View style={[S.segRow, isRTL && S.rowRev]}>
+                    {(["apartment", "villa", "commercial"] as PropertyType[]).map((tp) => (
+                      <TouchableOpacity key={tp}
+                        style={[S.seg, form.type === tp && { backgroundColor: TYPE_COLORS[tp] }]}
+                        onPress={() => setForm({ ...form, type: tp })}>
+                        <Text style={[S.segText, form.type === tp && { color: "#fff" }]}>
+                          {TYPE_ICONS[tp]} {t(tp as any)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={S.fieldLabel}>{t("city")}</Text>
+                  <View style={[S.segRow, isRTL && S.rowRev]}>
+                    {CITIES.map((c) => (
+                      <TouchableOpacity key={c}
+                        style={[S.seg, form.city === c && { backgroundColor: C.accent }]}
+                        onPress={() => setForm({ ...form, city: c })}>
+                        <Text style={[S.segText, form.city === c && { color: "#fff" }]}>{t(c as any)}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity
+                      style={[S.seg, !CITIES.includes(form.city) && { backgroundColor: C.accent }]}
+                      onPress={() => setForm({ ...form, city: "" })}>
+                      <Text style={[S.segText, !CITIES.includes(form.city) && { color: "#fff" }]}>{t("otherCity")}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {!CITIES.includes(form.city) && (
+                    <TextInput style={[S.input, isRTL && { textAlign: "right" }]}
+                      placeholder={t("city")} placeholderTextColor={C.textMuted}
+                      value={form.city} onChangeText={(v) => setForm({ ...form, city: v })} />
+                  )}
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 6 }}>
+                    <TextInput style={[S.input, { flex: 1 }, !!addPropErrors.units && S.inputError]} placeholder={t("totalUnits")}
+                      placeholderTextColor={C.textMuted} keyboardType="numeric" returnKeyType="done"
+                      value={form.total_units} onChangeText={(v) => { setForm({ ...form, total_units: v }); const n = parseInt(v); setAddPropErrors((e) => ({ ...e, units: v.trim() && (isNaN(n) || n < 1) ? t("validationUnitsRequired") : v.trim() && n > 500 ? t("validationUnitsMax") : "" })); }} />
+                    <TextInput style={[S.input, { flex: 1 }, !!addPropErrors.floors && S.inputError]} placeholder={t("floors")}
+                      placeholderTextColor={C.textMuted} keyboardType="numeric" returnKeyType="done"
+                      value={form.floors} onChangeText={(v) => { setForm({ ...form, floors: v }); const n = parseInt(v); setAddPropErrors((e) => ({ ...e, floors: v.trim() && n > 100 ? t("validationFloorsMax") : "" })); }} />
+                  </View>
+                  {(!!addPropErrors.units || !!addPropErrors.floors) && (
+                    <Text style={S.fieldError}>{addPropErrors.units || addPropErrors.floors}</Text>
+                  )}
+                  <TextInput style={[S.input, isRTL && { textAlign: "right" }, !!addPropErrors.income && S.inputError]}
+                    placeholder={`${t("monthlyIncome")} (${t("sar")})`} placeholderTextColor={C.textMuted}
+                    keyboardType="numeric" returnKeyType="done"
+                    value={form.monthly_income} onChangeText={(v) => { setForm({ ...form, monthly_income: v }); const n = parseFloat(v); setAddPropErrors((e) => ({ ...e, income: v.trim() && n > 9999999 ? t("validationAmountTooHigh") : "" })); }} />
+                  {!!addPropErrors.income && <Text style={S.fieldError}>{addPropErrors.income}</Text>}
+                  <TextInput style={[S.input, S.notesInput, isRTL && { textAlign: "right" }]}
+                    placeholder={t("notes") ?? "Notes (optional)"} placeholderTextColor={C.textMuted}
+                    multiline numberOfLines={3}
+                    value={form.notes} onChangeText={(v) => setForm({ ...form, notes: v })} />
+
+                  {/* SEC */}
+                  <Text style={S.fieldLabel}>⚡ {t("secAccount")}</Text>
+                  <View style={[S.segRow, isRTL && S.rowRev]}>
+                    <TouchableOpacity style={[S.seg, !form.has_multiple_sec && { backgroundColor: C.accent }]}
+                      onPress={() => setForm({ ...form, has_multiple_sec: false })}>
+                      <Text style={[S.segText, !form.has_multiple_sec && { color: "#fff" }]}>{t("singleAccount")}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[S.seg, form.has_multiple_sec && { backgroundColor: C.accent }]}
+                      onPress={() => setForm({ ...form, has_multiple_sec: true, sec_account: "" })}>
+                      <Text style={[S.segText, form.has_multiple_sec && { color: "#fff" }]}>{t("multipleSEC")}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {!form.has_multiple_sec ? (
+                    <TextInput style={[S.input, isRTL && { textAlign: "right" }]}
+                      placeholder={t("secAccount")} placeholderTextColor={C.textMuted}
+                      value={form.sec_account} onChangeText={(v) => setForm({ ...form, sec_account: v })}
+                      keyboardType="numeric" returnKeyType="done" />
+                  ) : <Text style={S.hintText}>💡 {t("multipleAccountsHint")}</Text>}
+                  {/* NWC */}
+                  <Text style={S.fieldLabel}>💧 {t("nwcAccount")}</Text>
+                  <View style={[S.segRow, isRTL && S.rowRev]}>
+                    <TouchableOpacity style={[S.seg, !form.has_multiple_nwc && { backgroundColor: C.accent }]}
+                      onPress={() => setForm({ ...form, has_multiple_nwc: false })}>
+                      <Text style={[S.segText, !form.has_multiple_nwc && { color: "#fff" }]}>{t("singleAccount")}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[S.seg, form.has_multiple_nwc && { backgroundColor: C.accent }]}
+                      onPress={() => setForm({ ...form, has_multiple_nwc: true, nwc_account: "" })}>
+                      <Text style={[S.segText, form.has_multiple_nwc && { color: "#fff" }]}>{t("multipleNWC")}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {!form.has_multiple_nwc ? (
+                    <TextInput style={[S.input, isRTL && { textAlign: "right" }]}
+                      placeholder={t("nwcAccount")} placeholderTextColor={C.textMuted}
+                      value={form.nwc_account} onChangeText={(v) => setForm({ ...form, nwc_account: v })}
+                      keyboardType="numeric" returnKeyType="done" />
+                  ) : <Text style={S.hintText}>💡 {t("multipleAccountsHint")}</Text>}
+                  <View style={[S.modalBtns, isRTL && S.rowRev]}>
+                    <TouchableOpacity style={S.cancelBtn} onPress={() => setAddVisible(false)} accessibilityRole="button" accessibilityLabel={t("cancel")}>
+                      <Text style={S.cancelBtnText}>{t("cancel")}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={S.saveBtn} onPress={addProperty} disabled={saving} accessibilityRole="button" accessibilityLabel={t("save")} accessibilityState={{ disabled: saving }}>
+                      {saving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={S.saveBtnText}>{t("save")}</Text>}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
+
+        {/* ── Edit Modal ── */}
+        <Modal visible={editVisible} animationType="slide" transparent onRequestClose={() => setEditVisible(false)}>
+          <View style={S.modalOverlay}>
+            <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setEditVisible(false); }} />
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
+              <ScrollView keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={true}>
+                <View style={S.modalBox}>
+                  <Text style={S.modalTitle}>{t("edit") ?? "Edit Property"}</Text>
+                  <TextInput style={[S.input, isRTL && { textAlign: "right" }, !!editPropErrors.name && S.inputError]}
+                    placeholder={t("propertyName")} placeholderTextColor={C.textMuted}
+                    returnKeyType="done" value={editForm.name}
+                    onChangeText={(v) => { setEditForm({ ...editForm, name: v }); setEditPropErrors((e) => ({ ...e, name: v.trim().length > 0 && v.trim().length < 2 ? t("validationPropertyNameShort") : "" })); }} />
+                  {!!editPropErrors.name && <Text style={S.fieldError}>{editPropErrors.name}</Text>}
+                  <Text style={S.fieldLabel}>{t("type")}</Text>
+                  <View style={[S.segRow, isRTL && S.rowRev]}>
+                    {(["apartment", "villa", "commercial"] as PropertyType[]).map((tp) => (
+                      <TouchableOpacity key={tp}
+                        style={[S.seg, editForm.type === tp && { backgroundColor: TYPE_COLORS[tp] }]}
+                        onPress={() => setEditForm({ ...editForm, type: tp })}>
+                        <Text style={[S.segText, editForm.type === tp && { color: "#fff" }]}>
+                          {TYPE_ICONS[tp]} {t(tp as any)}
+                        </Text>
+                      </TouchableOpacity>
+                    ))}
+                  </View>
+                  <Text style={S.fieldLabel}>{t("city")}</Text>
+                  <View style={[S.segRow, isRTL && S.rowRev]}>
+                    {CITIES.map((c) => (
+                      <TouchableOpacity key={c}
+                        style={[S.seg, editForm.city === c && { backgroundColor: C.accent }]}
+                        onPress={() => setEditForm({ ...editForm, city: c })}>
+                        <Text style={[S.segText, editForm.city === c && { color: "#fff" }]}>{t(c as any)}</Text>
+                      </TouchableOpacity>
+                    ))}
+                    <TouchableOpacity
+                      style={[S.seg, !CITIES.includes(editForm.city) && { backgroundColor: C.accent }]}
+                      onPress={() => setEditForm({ ...editForm, city: "" })}>
+                      <Text style={[S.segText, !CITIES.includes(editForm.city) && { color: "#fff" }]}>{t("otherCity")}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {!CITIES.includes(editForm.city) && (
+                    <TextInput style={[S.input, isRTL && { textAlign: "right" }]}
+                      placeholder={t("city")} placeholderTextColor={C.textMuted}
+                      value={editForm.city} onChangeText={(v) => setEditForm({ ...editForm, city: v })} />
+                  )}
+                  <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 6 }}>
+                    <TextInput style={[S.input, { flex: 1 }, !!editPropErrors.units && S.inputError]} placeholder={t("totalUnits")}
+                      placeholderTextColor={C.textMuted} keyboardType="numeric" returnKeyType="done"
+                      value={editForm.total_units} onChangeText={(v) => { setEditForm({ ...editForm, total_units: v }); const n = parseInt(v); setEditPropErrors((e) => ({ ...e, units: v.trim() && (isNaN(n) || n < 1) ? t("validationUnitsRequired") : v.trim() && n > 500 ? t("validationUnitsMax") : "" })); }} />
+                    <TextInput style={[S.input, { flex: 1 }, !!editPropErrors.floors && S.inputError]} placeholder={t("floors")}
+                      placeholderTextColor={C.textMuted} keyboardType="numeric" returnKeyType="done"
+                      value={editForm.floors} onChangeText={(v) => { setEditForm({ ...editForm, floors: v }); const n = parseInt(v); setEditPropErrors((e) => ({ ...e, floors: v.trim() && n > 100 ? t("validationFloorsMax") : "" })); }} />
+                  </View>
+                  {(!!editPropErrors.units || !!editPropErrors.floors) && (
+                    <Text style={S.fieldError}>{editPropErrors.units || editPropErrors.floors}</Text>
+                  )}
+                  <TextInput style={[S.input, isRTL && { textAlign: "right" }, !!editPropErrors.income && S.inputError]}
+                    placeholder={`${t("monthlyIncome")} (${t("sar")})`} placeholderTextColor={C.textMuted}
+                    keyboardType="numeric" returnKeyType="done"
+                    value={editForm.monthly_income} onChangeText={(v) => { setEditForm({ ...editForm, monthly_income: v }); const n = parseFloat(v); setEditPropErrors((e) => ({ ...e, income: v.trim() && n > 9999999 ? t("validationAmountTooHigh") : "" })); }} />
+                  {!!editPropErrors.income && <Text style={S.fieldError}>{editPropErrors.income}</Text>}
+                  <TextInput style={[S.input, S.notesInput, isRTL && { textAlign: "right" }]}
+                    placeholder={t("notes") ?? "Notes (optional)"} placeholderTextColor={C.textMuted}
+                    multiline numberOfLines={3}
+                    value={editForm.notes} onChangeText={(v) => setEditForm({ ...editForm, notes: v })} />
+
+                  {/* SEC */}
+                  <Text style={S.fieldLabel}>⚡ {t("secAccount")}</Text>
+                  <View style={[S.segRow, isRTL && S.rowRev]}>
+                    <TouchableOpacity style={[S.seg, !editForm.has_multiple_sec && { backgroundColor: C.accent }]}
+                      onPress={() => setEditForm({ ...editForm, has_multiple_sec: false })}>
+                      <Text style={[S.segText, !editForm.has_multiple_sec && { color: "#fff" }]}>{t("singleAccount")}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[S.seg, editForm.has_multiple_sec && { backgroundColor: C.accent }]}
+                      onPress={() => setEditForm({ ...editForm, has_multiple_sec: true, sec_account: "" })}>
+                      <Text style={[S.segText, editForm.has_multiple_sec && { color: "#fff" }]}>{t("multipleSEC")}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {!editForm.has_multiple_sec ? (
+                    <TextInput style={[S.input, isRTL && { textAlign: "right" }]}
+                      placeholder={t("secAccount")} placeholderTextColor={C.textMuted}
+                      value={editForm.sec_account} onChangeText={(v) => setEditForm({ ...editForm, sec_account: v })}
+                      keyboardType="numeric" returnKeyType="done" />
+                  ) : <Text style={S.hintText}>💡 {t("multipleAccountsHint")}</Text>}
+                  {/* NWC */}
+                  <Text style={S.fieldLabel}>💧 {t("nwcAccount")}</Text>
+                  <View style={[S.segRow, isRTL && S.rowRev]}>
+                    <TouchableOpacity style={[S.seg, !editForm.has_multiple_nwc && { backgroundColor: C.accent }]}
+                      onPress={() => setEditForm({ ...editForm, has_multiple_nwc: false })}>
+                      <Text style={[S.segText, !editForm.has_multiple_nwc && { color: "#fff" }]}>{t("singleAccount")}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={[S.seg, editForm.has_multiple_nwc && { backgroundColor: C.accent }]}
+                      onPress={() => setEditForm({ ...editForm, has_multiple_nwc: true, nwc_account: "" })}>
+                      <Text style={[S.segText, editForm.has_multiple_nwc && { color: "#fff" }]}>{t("multipleNWC")}</Text>
+                    </TouchableOpacity>
+                  </View>
+                  {!editForm.has_multiple_nwc ? (
+                    <TextInput style={[S.input, isRTL && { textAlign: "right" }]}
+                      placeholder={t("nwcAccount")} placeholderTextColor={C.textMuted}
+                      value={editForm.nwc_account} onChangeText={(v) => setEditForm({ ...editForm, nwc_account: v })}
+                      keyboardType="numeric" returnKeyType="done" />
+                  ) : <Text style={S.hintText}>💡 {t("multipleAccountsHint")}</Text>}
+                  <View style={[S.modalBtns, isRTL && S.rowRev]}>
+                    <TouchableOpacity style={S.cancelBtn} onPress={() => setEditVisible(false)} accessibilityRole="button" accessibilityLabel={t("cancel")}>
+                      <Text style={S.cancelBtnText}>{t("cancel")}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity style={S.saveBtn} onPress={saveEdit} disabled={editSaving} accessibilityRole="button" accessibilityLabel={t("save")} accessibilityState={{ disabled: editSaving }}>
+                      {editSaving ? <ActivityIndicator color="#fff" size="small" /> : <Text style={S.saveBtnText}>{t("save")}</Text>}
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              </ScrollView>
+            </KeyboardAvoidingView>
+          </View>
+        </Modal>
+      </View>
+    </TouchableWithoutFeedback>
+  );
+}
+
+const styles = (C: any, shadow: any) => StyleSheet.create({
+  container: { flex: 1, backgroundColor: C.background },
+  header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.md },
+  rowRev: { flexDirection: "row-reverse" },
+  headerTitle: { fontSize: 24, fontWeight: "700", color: C.text },
+  addBtn: { backgroundColor: C.accent, borderRadius: radii.md, paddingHorizontal: 16, paddingVertical: 8 },
+  addBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
+  searchBar: { flexDirection: "row", alignItems: "center", marginHorizontal: spacing.md, marginBottom: 10, backgroundColor: C.background, borderRadius: radii.md, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12 },
+  searchIcon: { fontSize: 14, marginRight: 8 },
+  searchInput: { flex: 1, paddingVertical: 10, color: C.text, fontSize: 14 },
+  searchClearBtn: { padding: 4 },
+  searchClearText: { color: C.textMuted, fontSize: 14 },
+  summaryRow: { flexDirection: "row", paddingHorizontal: spacing.md, gap: 8, marginBottom: 12 },
+  summaryCard: { flex: 1, backgroundColor: C.surface, borderRadius: radii.md, padding: 12, alignItems: "center" },
+  summaryVal: { fontSize: 18, fontWeight: "700", color: C.accent },
+  summaryLbl: { fontSize: 11, color: C.textMuted, marginTop: 2 },
+  listContent: { paddingHorizontal: spacing.md, paddingTop: 4 },
+  card: { backgroundColor: C.surface, borderRadius: radii.lg, padding: spacing.md, ...shadow, borderWidth: 1, borderColor: C.border, marginBottom: 12 },
+  cardHeader: { flexDirection: "row", alignItems: "center" },
+  cardIcon: { fontSize: 28 },
+  cardName: { fontSize: 16, fontWeight: "700", color: C.text },
+  cardCity: { fontSize: 12, color: C.textMuted, marginTop: 2 },
+  cardNotes: { fontSize: 11, color: C.textMuted, marginTop: 3, fontStyle: "italic" },
+  badge: { borderRadius: radii.sm, paddingHorizontal: 10, paddingVertical: 4 },
+  badgeText: { color: "#fff", fontSize: 11, fontWeight: "600" },
+  divider: { height: 1, backgroundColor: C.border, marginVertical: 10 },
+  cardStats: { flexDirection: "row", justifyContent: "space-between" },
+  statText: { fontSize: 12, color: C.textMuted },
+  incomeText: { fontSize: 13, fontWeight: "700", color: C.accent },
+  viewHint: { fontSize: 11, color: C.accent },
+  emptyText: { textAlign: "center", color: C.textMuted, marginTop: 60, fontSize: 15 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
+  modalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40 },
+  modalTitle: { fontSize: 20, fontWeight: "700", color: C.text, marginBottom: 16, textAlign: "center" },
+  input: { backgroundColor: C.background, borderRadius: radii.md, padding: 12, color: C.text, marginBottom: 10, borderWidth: 1, borderColor: C.border },
+  notesInput: { height: 80, textAlignVertical: "top" },
+  fieldLabel: { color: C.textMuted, fontSize: 13, marginBottom: 6 },
+  segRow: { flexDirection: "row", gap: 6, marginBottom: 12, flexWrap: "wrap" },
+  seg: { backgroundColor: C.background, borderRadius: radii.md, paddingHorizontal: 12, paddingVertical: 8, borderWidth: 1, borderColor: C.border },
+  segText: { color: C.textMuted, fontSize: 12 },
+  hintText: { fontSize: 12, color: C.textMuted, fontStyle: "italic", marginBottom: 10, paddingHorizontal: 4 },
+  modalBtns: { flexDirection: "row", gap: 10, marginTop: 8 },
+  cancelBtn: { flex: 1, backgroundColor: C.background, borderRadius: radii.md, padding: 14, alignItems: "center" },
+  cancelBtnText: { color: C.textMuted, fontWeight: "600" },
+  saveBtn: { flex: 1, backgroundColor: C.accent, borderRadius: radii.md, padding: 14, alignItems: "center" },
+  saveBtnText: { color: "#fff", fontWeight: "700" },
+  fieldError: { fontSize: 11, color: "#EF4444", marginTop: -6, marginBottom: 6 },
+  inputError: { borderColor: "#EF4444" },
+});
