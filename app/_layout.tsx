@@ -154,6 +154,7 @@ function RootNavigator() {
         <Stack.Screen name="reports" options={{ headerShown: false }} />
         <Stack.Screen name="terms" options={{ headerShown: false }} />
         <Stack.Screen name="privacy" options={{ headerShown: false }} />
+        <Stack.Screen name="reset-password" options={{ headerShown: false }} />
         <Stack.Screen name="paywall" options={{ headerShown: false, presentation: "modal" }} />
       </Stack>
       {/* Splash overlay hides any flash of the wrong screen during redirect */}

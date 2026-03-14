@@ -1,5 +1,7 @@
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import { Platform } from "react-native";
 import { Session, User } from "@supabase/supabase-js";
+import { router } from "expo-router";
 import { supabase } from "../lib/supabase";
 
 interface AuthCtx {
@@ -48,8 +50,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
       if (mounted) setSession(session);
+      // When user clicks password reset link, navigate to reset-password page
+      if (event === "PASSWORD_RECOVERY") {
+        router.replace("/reset-password");
+      }
     });
 
     return () => {
@@ -74,7 +80,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const resetPassword = useCallback(async (email: string): Promise<string | null> => {
-    const { error } = await supabase.auth.resetPasswordForEmail(email);
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: Platform.OS === "web"
+        ? `${window.location.origin}/reset-password`
+        : "propertymanager://reset-password",
+    });
     return error ? error.message : null;
   }, []);
 
