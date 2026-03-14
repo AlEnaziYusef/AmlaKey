@@ -42,8 +42,8 @@ export default function PaywallScreen() {
   const [purchasing, setPurchasing] = useState(false);
   const [restoring, setRestoring] = useState(false);
 
-  const monthlyPrice = "9.99";
-  const annualPrice = "59";
+  const monthlyPrice = "14.99";
+  const annualPrice = "89";
   const currency = t("sar");
 
   const isWeb = Platform.OS === "web";

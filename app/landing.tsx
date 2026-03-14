@@ -258,7 +258,7 @@ export default function LandingPage() {
                 </View>
                 <Text style={s.priceCardTitle}>{t("landingPro")}</Text>
                 <Text style={s.priceAmount}>
-                  9.99{" "}
+                  14.99{" "}
                   <Text style={s.priceCurrency}>
                     {isRTL ? "ر.س/شهر" : "SAR/mo"}
                   </Text>
