@@ -201,17 +201,17 @@ function useWebCSS() {
       ::-webkit-scrollbar-thumb:hover { background: ${colors.textMuted}; }
       [role="button"]:hover, button:hover { opacity: 0.88; transition: opacity 0.15s ease; }
       input:focus, textarea:focus { border-color: #0EA5E9 !important; }
-      /* Sidebar content offset — uses CSS :has() to find the scene container sibling */
+      /* Sidebar content offset — target the absolute-positioned screen inside the scene container */
       :root { --sidebar-w: 240px; }
       @media (min-width: 768px) {
-        div:has(> #amlakey-sidebar) > div:not(#amlakey-sidebar) {
-          padding-left: var(--sidebar-w) !important;
-          transition: padding-left 0.2s ease;
+        div:has(> #amlakey-sidebar) > div:not(#amlakey-sidebar) > div[style*="position"] {
+          left: var(--sidebar-w) !important;
+          transition: left 0.2s ease;
         }
-        [dir="rtl"] div:has(> #amlakey-sidebar) > div:not(#amlakey-sidebar) {
-          padding-left: 0 !important;
-          padding-right: var(--sidebar-w) !important;
-          transition: padding-right 0.2s ease;
+        [dir="rtl"] div:has(> #amlakey-sidebar) > div:not(#amlakey-sidebar) > div[style*="position"] {
+          left: 0 !important;
+          right: var(--sidebar-w) !important;
+          transition: right 0.2s ease;
         }
       }
     `;
