@@ -1,10 +1,13 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Image, Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Tabs } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useResponsive } from "../../components/WebContainer";
+
+const SIDEBAR_FULL = 240;
+const SIDEBAR_COLLAPSED = 64;
 
 /* ── Tab definitions ─────────────────────────────────── */
 
@@ -17,7 +20,7 @@ const TAB_ITEMS = [
 
 /* ── Desktop sidebar component ───────────────────────── */
 
-function DesktopSidebar({ state, descriptors, navigation }: any) {
+function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }: any) {
   const { colors, isDark, toggleTheme } = useTheme();
   const { t, isRTL } = useLanguage();
 
@@ -26,6 +29,7 @@ function DesktopSidebar({ state, descriptors, navigation }: any) {
       style={[
         sidebarStyles.container,
         {
+          width: collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_FULL,
           backgroundColor: colors.surface,
           borderRightWidth: isRTL ? 0 : 1,
           borderLeftWidth: isRTL ? 1 : 0,
@@ -33,16 +37,35 @@ function DesktopSidebar({ state, descriptors, navigation }: any) {
         },
       ]}
     >
-      {/* App logo + name */}
-      <View style={sidebarStyles.logoRow}>
-        <Image
-          source={require("../../assets/images/splash-icon.png")}
-          style={sidebarStyles.logo}
-          resizeMode="contain"
-        />
-        <Text style={[sidebarStyles.logoText, { color: colors.text }]}>
-          {isRTL ? "أملاكي" : "Amlakey"}
-        </Text>
+      {/* App logo + collapse toggle */}
+      <View style={[sidebarStyles.logoRow, collapsed && { justifyContent: "center", paddingHorizontal: 0 }]}>
+        {collapsed ? (
+          <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel="Expand sidebar">
+            <Image
+              source={require("../../assets/images/splash-icon.png")}
+              style={sidebarStyles.logo}
+              resizeMode="contain"
+            />
+          </Pressable>
+        ) : (
+          <>
+            <Image
+              source={require("../../assets/images/splash-icon.png")}
+              style={sidebarStyles.logo}
+              resizeMode="contain"
+            />
+            <Text style={[sidebarStyles.logoText, { color: colors.text, flex: 1 }]}>
+              {isRTL ? "أملاكي" : "Amlakey"}
+            </Text>
+            <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel="Collapse sidebar">
+              <Ionicons
+                name={isRTL ? "chevron-forward" : "chevron-back"}
+                size={18}
+                color={colors.textMuted}
+              />
+            </Pressable>
+          </>
+        )}
       </View>
 
       {/* Nav items */}
@@ -55,6 +78,7 @@ function DesktopSidebar({ state, descriptors, navigation }: any) {
               onPress={() => navigation.navigate(state.routes[idx].name)}
               style={({ hovered }: any) => [
                 sidebarStyles.navItem,
+                collapsed && { justifyContent: "center", paddingHorizontal: 0 },
                 {
                   backgroundColor: isActive
                     ? colors.accentSoft
@@ -68,32 +92,36 @@ function DesktopSidebar({ state, descriptors, navigation }: any) {
               accessibilityLabel={t(tab.labelKey)}
             >
               {/* Active indicator bar */}
-              <View
-                style={[
-                  sidebarStyles.activeBar,
-                  {
-                    backgroundColor: isActive ? colors.accent : "transparent",
-                    [isRTL ? "right" : "left"]: 0,
-                  },
-                ]}
-              />
+              {!collapsed && (
+                <View
+                  style={[
+                    sidebarStyles.activeBar,
+                    {
+                      backgroundColor: isActive ? colors.accent : "transparent",
+                      [isRTL ? "right" : "left"]: 0,
+                    },
+                  ]}
+                />
+              )}
               <Ionicons
                 name={tab.icon}
                 size={20}
                 color={isActive ? colors.accent : colors.textMuted}
-                style={{ marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0 }}
+                style={collapsed ? {} : { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0 }}
               />
-              <Text
-                style={[
-                  sidebarStyles.navLabel,
-                  {
-                    color: isActive ? colors.accent : colors.textMuted,
-                    fontWeight: isActive ? "700" : "500",
-                  },
-                ]}
-              >
-                {t(tab.labelKey)}
-              </Text>
+              {!collapsed && (
+                <Text
+                  style={[
+                    sidebarStyles.navLabel,
+                    {
+                      color: isActive ? colors.accent : colors.textMuted,
+                      fontWeight: isActive ? "700" : "500",
+                    },
+                  ]}
+                >
+                  {t(tab.labelKey)}
+                </Text>
+              )}
             </Pressable>
           );
         })}
@@ -104,6 +132,7 @@ function DesktopSidebar({ state, descriptors, navigation }: any) {
         onPress={toggleTheme}
         style={({ hovered }: any) => [
           sidebarStyles.themeToggle,
+          collapsed && { justifyContent: "center", paddingHorizontal: 0, marginHorizontal: 8 },
           {
             backgroundColor: hovered ? `${colors.textMuted}11` : "transparent",
             flexDirection: isRTL ? "row-reverse" : "row",
@@ -116,11 +145,13 @@ function DesktopSidebar({ state, descriptors, navigation }: any) {
           name={isDark ? "sunny-outline" : "moon-outline"}
           size={20}
           color={colors.textMuted}
-          style={{ marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0 }}
+          style={collapsed ? {} : { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0 }}
         />
-        <Text style={[sidebarStyles.navLabel, { color: colors.textMuted }]}>
-          {isDark ? t("lightMode") : t("darkMode")}
-        </Text>
+        {!collapsed && (
+          <Text style={[sidebarStyles.navLabel, { color: colors.textMuted }]}>
+            {isDark ? t("lightMode") : t("darkMode")}
+          </Text>
+        )}
       </Pressable>
     </View>
   );
@@ -128,7 +159,6 @@ function DesktopSidebar({ state, descriptors, navigation }: any) {
 
 const sidebarStyles = StyleSheet.create({
   container: {
-    width: 240,
     paddingTop: 20,
     paddingBottom: 16,
   },
@@ -188,13 +218,37 @@ function CustomTabBar(props: any) {
   const { colors, isDark } = useTheme();
   const { isRTL } = useLanguage();
 
+  // Collapsed sidebar state (web desktop only)
+  const [collapsed, setCollapsed] = useState(() => {
+    if (Platform.OS !== "web") return false;
+    try { return localStorage.getItem("amlakey-sidebar-collapsed") === "true"; } catch { return false; }
+  });
+
+  const sidebarWidth = collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_FULL;
+
+  // Sync CSS variable for content offset
+  useEffect(() => {
+    if (Platform.OS !== "web" || !isDesktop) return;
+    document.documentElement.style.setProperty("--sidebar-w", `${sidebarWidth}px`);
+  }, [sidebarWidth, isDesktop]);
+
+  const toggleCollapsed = () => {
+    setCollapsed((prev: boolean) => {
+      const next = !prev;
+      if (Platform.OS === "web") {
+        try { localStorage.setItem("amlakey-sidebar-collapsed", String(next)); } catch {}
+      }
+      return next;
+    });
+  };
+
   if (isDesktop) {
-    // Desktop: fixed sidebar — screen content is offset via sceneContainerStyle
     return (
       <View
+        nativeID="amlakey-sidebar"
         style={[
           {
-            width: 240,
+            width: sidebarWidth,
             backgroundColor: colors.surface,
           },
           Platform.OS === "web" && ({
@@ -203,10 +257,11 @@ function CustomTabBar(props: any) {
             bottom: 0,
             zIndex: 100,
             [isRTL ? "right" : "left"]: 0,
+            transition: "width 0.2s ease",
           } as any),
         ]}
       >
-        <DesktopSidebar {...props} />
+        <DesktopSidebar {...props} collapsed={collapsed} onToggle={toggleCollapsed} />
       </View>
     );
   }
@@ -273,14 +328,6 @@ export default function TabsLayout() {
   return (
     <Tabs
       tabBar={(props) => <CustomTabBar {...props} />}
-      sceneContainerStyle={
-        isDesktop
-          ? {
-              [isRTL ? "paddingRight" : "paddingLeft"]: 240,
-              backgroundColor: colors.background,
-            } as any
-          : undefined
-      }
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.accent,

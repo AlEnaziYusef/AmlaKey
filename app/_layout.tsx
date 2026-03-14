@@ -201,6 +201,19 @@ function useWebCSS() {
       ::-webkit-scrollbar-thumb:hover { background: ${colors.textMuted}; }
       [role="button"]:hover, button:hover { opacity: 0.88; transition: opacity 0.15s ease; }
       input:focus, textarea:focus { border-color: #0EA5E9 !important; }
+      /* Sidebar content offset — uses CSS :has() to find the scene container sibling */
+      :root { --sidebar-w: 240px; }
+      @media (min-width: 768px) {
+        div:has(> #amlakey-sidebar) > div:not(#amlakey-sidebar) {
+          padding-left: var(--sidebar-w) !important;
+          transition: padding-left 0.2s ease;
+        }
+        [dir="rtl"] div:has(> #amlakey-sidebar) > div:not(#amlakey-sidebar) {
+          padding-left: 0 !important;
+          padding-right: var(--sidebar-w) !important;
+          transition: padding-right 0.2s ease;
+        }
+      }
     `;
   }, [colors]);
 }
