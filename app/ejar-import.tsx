@@ -1,9 +1,16 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator, Alert, FlatList, Keyboard, Modal, ScrollView, StyleSheet,
+  ActivityIndicator, Alert, FlatList, Keyboard, Linking, Modal, Platform, ScrollView, StyleSheet,
   Text, TextInput, TouchableOpacity, View,
 } from "react-native";
-import { WebView } from "react-native-webview";
+
+const isWeb = Platform.OS === "web";
+
+// WebView only available on native
+let WebView: any = null;
+if (!isWeb) {
+  WebView = require("react-native-webview").WebView;
+}
 import { router, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLanguage } from "../context/LanguageContext";
@@ -251,6 +258,30 @@ export default function EjarImportScreen() {
   function handleFetch() {
     Keyboard.dismiss();
     if (!validateFields()) return;
+
+    if (isWeb) {
+      // On web, WebView is not available — open REGA in a new tab
+      // User must manually look up contract and enter data
+      Alert.alert(
+        t("ejarImport"),
+        "The REGA contract lookup will open in a new browser tab. Once you have your contract details, you can enter them manually.",
+        [
+          {
+            text: t("ok"),
+            onPress: () => {
+              if (typeof window !== "undefined") {
+                window.open(REGA_FORM_URL, "_blank");
+              } else {
+                Linking.openURL(REGA_FORM_URL);
+              }
+            },
+          },
+          { text: t("cancel"), style: "cancel" },
+        ]
+      );
+      return;
+    }
+
     setError("");
     setContractData(null);
     setLoading(true);
@@ -1020,8 +1051,8 @@ true;
           </View>
         </Modal>
 
-        {/* ── Off-screen WebView — real size needed for REGA to render content ── */}
-        {webViewUrl && (
+        {/* ── Off-screen WebView — real size needed for REGA to render content (native only) ── */}
+        {!isWeb && webViewUrl && WebView && (
           <WebView
             ref={webViewRef}
             source={{ uri: webViewUrl }}

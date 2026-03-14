@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Account Verified - Amlakey | تم التحقق - أملاكي</title>
+  <link rel="icon" type="image/png" href="favicon.png">
+  <style>
+    :root {
+      --primary: #0D9488;
+      --primary-dark: #0F766E;
+      --bg: #F1F5F9;
+      --surface: #FFFFFF;
+      --text: #0F172A;
+      --muted: #64748B;
+    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+    [dir="rtl"] { font-family: -apple-system, BlinkMacSystemFont, 'SF Arabic', 'Segoe UI', Tahoma, sans-serif; }
+
+    .lang-toggle {
+      position: fixed; top: 16px; right: 16px; z-index: 100;
+      background: var(--surface); border: 1px solid #E2E8F0; border-radius: 10px;
+      padding: 6px 14px; cursor: pointer; font-size: 14px; font-weight: 600;
+      color: var(--primary); box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+      transition: all 0.2s;
+    }
+    .lang-toggle:hover { background: var(--primary); color: white; }
+    [dir="rtl"] .lang-toggle { right: auto; left: 16px; }
+
+    .card {
+      background: var(--surface);
+      border-radius: 24px;
+      padding: 48px 40px;
+      max-width: 460px;
+      width: 90%;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+      animation: fadeIn 0.6s ease-out;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .check-circle {
+      width: 80px; height: 80px;
+      background: linear-gradient(135deg, #0D9488 0%, #0EA5E9 100%);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      margin: 0 auto 24px;
+      animation: scaleIn 0.5s ease-out 0.2s both;
+    }
+    @keyframes scaleIn {
+      from { transform: scale(0); }
+      to { transform: scale(1); }
+    }
+    .check-circle svg {
+      width: 40px; height: 40px; color: white;
+    }
+
+    .brand { font-size: 14px; font-weight: 700; color: var(--primary); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 8px; }
+    h1 { font-size: 28px; font-weight: 800; margin-bottom: 12px; color: var(--text); }
+    .message { font-size: 16px; color: var(--muted); line-height: 1.6; margin-bottom: 32px; }
+
+    .cta {
+      display: inline-block;
+      background: linear-gradient(135deg, #0D9488 0%, #0EA5E9 100%);
+      color: white;
+      padding: 14px 36px;
+      border-radius: 14px;
+      font-size: 16px;
+      font-weight: 700;
+      text-decoration: none;
+      transition: transform 0.2s, box-shadow 0.2s;
+      box-shadow: 0 4px 16px rgba(13,148,136,0.3);
+    }
+    .cta:hover { transform: translateY(-2px); box-shadow: 0 8px 24px rgba(13,148,136,0.4); }
+
+    .footer-text {
+      margin-top: 24px;
+      font-size: 13px;
+      color: var(--muted);
+    }
+    .footer-text a { color: var(--primary); text-decoration: none; }
+
+    .hidden { display: none !important; }
+
+    @media (max-width: 640px) {
+      .card { padding: 36px 24px; }
+      h1 { font-size: 24px; }
+    }
+  </style>
+</head>
+<body>
+
+<button class="lang-toggle" onclick="toggleLang()">العربية</button>
+
+<div class="card">
+  <div class="check-circle">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+      <polyline points="20 6 9 17 4 12"></polyline>
+    </svg>
+  </div>
+
+  <div class="brand en">Amlakey</div>
+  <div class="brand ar hidden">أملاكي</div>
+
+  <h1 class="en">Account Verified!</h1>
+  <h1 class="ar hidden">تم التحقق من حسابك!</h1>
+
+  <p class="message en">Your email has been successfully verified. You can now open the Amlakey app and sign in to start managing your properties.</p>
+  <p class="message ar hidden">تم التحقق من بريدك الإلكتروني بنجاح. يمكنك الآن فتح تطبيق أملاكي وتسجيل الدخول لبدء إدارة عقاراتك.</p>
+
+  <a href="https://amlakeyapp.com" class="cta en">Go to Amlakey</a>
+  <a href="https://amlakeyapp.com" class="cta ar hidden">الذهاب إلى أملاكي</a>
+
+  <p class="footer-text en">You can close this page and return to the app.</p>
+  <p class="footer-text ar hidden">يمكنك إغلاق هذه الصفحة والعودة إلى التطبيق.</p>
+</div>
+
+<script>
+  let isAr = false;
+  // Auto-detect Arabic browser
+  if (navigator.language && navigator.language.startsWith('ar')) {
+    isAr = true;
+    applyLang();
+  }
+  function toggleLang() {
+    isAr = !isAr;
+    applyLang();
+  }
+  function applyLang() {
+    document.documentElement.dir = isAr ? 'rtl' : 'ltr';
+    document.documentElement.lang = isAr ? 'ar' : 'en';
+    document.querySelector('.lang-toggle').textContent = isAr ? 'English' : 'العربية';
+    document.querySelectorAll('.en').forEach(el => el.classList.toggle('hidden', isAr));
+    document.querySelectorAll('.ar').forEach(el => el.classList.toggle('hidden', !isAr));
+  }
+</script>
+
+</body>
+</html>

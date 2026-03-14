@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
+import { Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 
 type Language = "en" | "ar";
@@ -457,7 +458,7 @@ const translations = {
     termsChangesTitle: "Changes to Terms",
     termsChangesBody: "We may update these terms from time to time. We will notify you of significant changes through the application or via email. Continued use of Amlakey after changes constitutes acceptance of the updated terms.",
     termsContactTitle: "Contact Us",
-    termsContactBody: "If you have questions about these Terms of Service, please contact us at support@amlakey.com.",
+    termsContactBody: "If you have questions about these Terms of Service, please contact us at support@amlakeyapp.com.",
     // Privacy sections
     privacyIntroTitle: "Introduction",
     privacyIntroBody: "At Amlakey, we take your privacy seriously. This Privacy Policy explains how we collect, use, store, and protect your personal information when you use our property management application.",
@@ -474,7 +475,7 @@ const translations = {
     privacyChangesTitle: "Changes to This Policy",
     privacyChangesBody: "We may update this Privacy Policy periodically. We will notify you of material changes through the application. The \"Last Updated\" date at the top of this page indicates when the policy was last revised.",
     privacyContactTitle: "Contact Us",
-    privacyContactBody: "For privacy-related inquiries, please contact us at support@amlakey.com.",
+    privacyContactBody: "For privacy-related inquiries, please contact us at support@amlakeyapp.com.",
     // Subscription
     subscriptionTitle: "Upgrade to Pro",
     currentPlan: "Current Plan",
@@ -971,7 +972,7 @@ const translations = {
     termsChangesTitle: "التغييرات على الشروط",
     termsChangesBody: "قد نقوم بتحديث هذه الشروط من وقت لآخر. سنخطرك بالتغييرات المهمة عبر التطبيق أو البريد الإلكتروني. استمرارك في استخدام أملاكي بعد التغييرات يعني قبولك للشروط المحدّثة.",
     termsContactTitle: "تواصل معنا",
-    termsContactBody: "إذا كانت لديك أسئلة حول شروط الاستخدام، يرجى التواصل معنا على support@amlakey.com.",
+    termsContactBody: "إذا كانت لديك أسئلة حول شروط الاستخدام، يرجى التواصل معنا على support@amlakeyapp.com.",
     // Privacy sections
     privacyIntroTitle: "المقدمة",
     privacyIntroBody: "في أملاكي، نأخذ خصوصيتك على محمل الجد. توضح سياسة الخصوصية هذه كيفية جمع واستخدام وتخزين وحماية معلوماتك الشخصية عند استخدامك لتطبيق إدارة العقارات.",
@@ -988,7 +989,7 @@ const translations = {
     privacyChangesTitle: "التغييرات على هذه السياسة",
     privacyChangesBody: "قد نقوم بتحديث سياسة الخصوصية هذه بشكل دوري. سنخطرك بالتغييرات الجوهرية عبر التطبيق. يشير تاريخ \"آخر تحديث\" أعلى هذه الصفحة إلى آخر مرة تم فيها مراجعة السياسة.",
     privacyContactTitle: "تواصل معنا",
-    privacyContactBody: "للاستفسارات المتعلقة بالخصوصية، يرجى التواصل معنا على support@amlakey.com.",
+    privacyContactBody: "للاستفسارات المتعلقة بالخصوصية، يرجى التواصل معنا على support@amlakeyapp.com.",
     // Subscription
     subscriptionTitle: "الترقية إلى برو",
     currentPlan: "الخطة الحالية",
@@ -1052,6 +1053,14 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
       if (v === "en" || v === "ar") setLang(v);
     }).catch(() => {});
   }, []);
+
+  // Sync document direction on web whenever language changes
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      document.documentElement.dir = lang === "ar" ? "rtl" : "ltr";
+      document.documentElement.lang = lang;
+    }
+  }, [lang]);
 
   const toggle = async () => {
     const next: Language = lang === "en" ? "ar" : "en";

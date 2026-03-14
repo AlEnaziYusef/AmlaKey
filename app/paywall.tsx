@@ -46,7 +46,17 @@ export default function PaywallScreen() {
   const annualPrice = "59";
   const currency = t("sar");
 
+  const isWeb = Platform.OS === "web";
+
   async function handlePurchase() {
+    if (isWeb) {
+      Alert.alert(
+        t("subscribePro"),
+        "Subscriptions are available through the mobile app. Download Amlakey from the App Store or Google Play to subscribe.",
+        [{ text: t("ok") }]
+      );
+      return;
+    }
     // Find matching package
     const pkg = packages.find((p) =>
       selectedPlan === "annual"
@@ -54,7 +64,6 @@ export default function PaywallScreen() {
         : p.packageType === "MONTHLY"
     );
     if (!pkg) {
-      // RevenueCat not configured yet — show info
       Alert.alert(
         t("subscribePro"),
         "Subscription will be available soon on the App Store.",
@@ -71,6 +80,10 @@ export default function PaywallScreen() {
   }
 
   async function handleRestore() {
+    if (isWeb) {
+      Alert.alert("ℹ️", "Restore purchases is only available on the mobile app.", [{ text: t("ok") }]);
+      return;
+    }
     setRestoring(true);
     const success = await restorePurchases();
     setRestoring(false);

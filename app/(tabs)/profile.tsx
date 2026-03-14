@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator, Alert, I18nManager, Linking, ScrollView,
+  ActivityIndicator, Alert, I18nManager, Linking, Platform, ScrollView,
   StyleSheet, Text, TouchableOpacity, View,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -12,8 +12,15 @@ import { spacing, radii } from "../../constants/theme";
 import { NotificationSettingsModal } from "../../components/NotificationSettingsModal";
 import { exportAllData, importAllData, getLastBackupDate } from "../../lib/backup";
 import { userKey, PERSONAL_INFO_KEY, BIOMETRIC_LOCK_KEY } from "../../lib/storage";
-import * as LocalAuthentication from "expo-local-authentication";
 import { useSubscription } from "../../context/SubscriptionContext";
+
+const isWeb = Platform.OS === "web";
+
+// Lazy-load expo-local-authentication only on native
+let LocalAuthentication: typeof import("expo-local-authentication") | null = null;
+if (!isWeb) {
+  LocalAuthentication = require("expo-local-authentication");
+}
 interface PersonalInfo {
   fullName: string;
   phone: string;
@@ -44,8 +51,9 @@ export default function ProfileScreen() {
   const [biometricEnabled, setBiometricEnabled] = useState(false);
 
   useEffect(() => {
+    if (isWeb || !LocalAuthentication) return;
     LocalAuthentication.hasHardwareAsync().then((has) => {
-      if (has) LocalAuthentication.isEnrolledAsync().then(setBiometricAvailable);
+      if (has) LocalAuthentication!.isEnrolledAsync().then(setBiometricAvailable);
     });
     if (user) {
       AsyncStorage.getItem(userKey(user.id, BIOMETRIC_LOCK_KEY)).then((v) =>
@@ -55,6 +63,7 @@ export default function ProfileScreen() {
   }, [user]);
 
   const toggleBiometric = async () => {
+    if (isWeb || !LocalAuthentication) return;
     if (!biometricEnabled) {
       const result = await LocalAuthentication.authenticateAsync({
         promptMessage: t("biometricVerify"),
@@ -87,11 +96,13 @@ export default function ProfileScreen() {
   const handleLanguageToggle = () => {
     const switchingToArabic = lang === "en";
     toggle();
-    I18nManager.allowRTL(switchingToArabic);
-    I18nManager.forceRTL(switchingToArabic);
-    // Show alert in the NEW language (after toggle)
-    const newLang = switchingToArabic ? "ar" : "en";
-    // We just toggled, so t() now returns the new language
+    if (isWeb) {
+      document.documentElement.dir = switchingToArabic ? "rtl" : "ltr";
+      document.documentElement.lang = switchingToArabic ? "ar" : "en";
+    } else {
+      I18nManager.allowRTL(switchingToArabic);
+      I18nManager.forceRTL(switchingToArabic);
+    }
     setTimeout(() => {
       Alert.alert(
         t("langChanged"),
@@ -301,13 +312,9 @@ export default function ProfileScreen() {
         <Divider />
         <Row icon="🔒" label={t("privacyPolicy")} onPress={() => router.push("/privacy" as any)} />
         <Divider />
-        <Row icon="📧" label={t("contactUs")} onPress={() => Linking.openURL("mailto:support@amlakey.com")} />
-        <Divider />
-        <Row icon="💬" label={t("sendFeedback")} onPress={() => Linking.openURL("mailto:feedback@amlakey.com?subject=App Feedback")} />
+        <Row icon="📧" label={t("contactUs")} onPress={() => Linking.openURL("mailto:support@amlakeyapp.com")} />
         <Divider />
         <Row icon="📱" label={t("appVersion")} right={<Text style={S.rowValue}>1.0.0</Text>} />
-        <Divider />
-        <Row icon="🗄️" label={t("database")} right={<Text style={[S.rowValue, { color: "#22C55E" }]}>● {t("connected")}</Text>} />
       </View>
 
       {/* ══════════════ SIGN OUT ══════════════ */}

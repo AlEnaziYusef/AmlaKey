@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator, Alert, ScrollView, StyleSheet, Text,
+  ActivityIndicator, Alert, Platform, ScrollView, StyleSheet, Text,
   TouchableOpacity, View,
 } from "react-native";
 import { router } from "expo-router";
@@ -9,12 +9,22 @@ import { useLanguage, TKey } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, radii } from "../constants/theme";
-import * as FileSystem from "expo-file-system/legacy";
-import * as Sharing from "expo-sharing";
-import * as Print from "expo-print";
-import { Asset } from "expo-asset";
 import * as XLSX from "xlsx";
 import { useSubscription } from "../context/SubscriptionContext";
+
+const isWeb = Platform.OS === "web";
+
+// Native-only imports (crash on web at module level)
+let FileSystem: typeof import("expo-file-system/legacy") | null = null;
+let Sharing: typeof import("expo-sharing") | null = null;
+let Print: typeof import("expo-print") | null = null;
+let Asset: typeof import("expo-asset").Asset | null = null;
+if (!isWeb) {
+  FileSystem = require("expo-file-system/legacy");
+  Sharing = require("expo-sharing");
+  Print = require("expo-print");
+  Asset = require("expo-asset").Asset;
+}
 
 type TimePeriod = "thisMonth" | "lastMonth" | "last3Months" | "last6Months" | "thisYear" | "allTime";
 type ReportType = "revenue" | "expenses" | "full";
@@ -222,14 +232,20 @@ export default function ReportsScreen() {
         XLSX.utils.book_append_sheet(wb, ws, t("sectionSummary"));
       }
 
-      const wbout = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
-      const filename = `amlakey_report_${period}_${Date.now()}.xlsx`;
-      const path = `${FileSystem.cacheDirectory}${filename}`;
-      await FileSystem.writeAsStringAsync(path, wbout, { encoding: FileSystem.EncodingType.Base64 });
-      await Sharing.shareAsync(path, {
-        mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        UTI: "org.openxmlformats.spreadsheetml.sheet",
-      });
+      if (isWeb) {
+        // Web: use XLSX.writeFile which triggers browser download
+        const filename = `amlakey_report_${period}_${Date.now()}.xlsx`;
+        XLSX.writeFile(wb, filename);
+      } else {
+        const wbout = XLSX.write(wb, { type: "base64", bookType: "xlsx" });
+        const filename = `amlakey_report_${period}_${Date.now()}.xlsx`;
+        const path = `${FileSystem!.cacheDirectory}${filename}`;
+        await FileSystem!.writeAsStringAsync(path, wbout, { encoding: FileSystem!.EncodingType.Base64 });
+        await Sharing!.shareAsync(path, {
+          mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+          UTI: "org.openxmlformats.spreadsheetml.sheet",
+        });
+      }
     } catch (e: any) {
       Alert.alert(t("error"), e.message);
     }
@@ -325,19 +341,30 @@ export default function ReportsScreen() {
     if (!data) return;
     setExporting(true);
     try {
-      // Load logo as base64
-      let logoBase64: string | undefined;
-      try {
-        const asset = Asset.fromModule(require("../assets/images/splash-icon.png"));
-        await asset.downloadAsync();
-        if (asset.localUri) {
-          logoBase64 = await FileSystem.readAsStringAsync(asset.localUri, { encoding: FileSystem.EncodingType.Base64 });
+      if (isWeb) {
+        // Web: open HTML in new window and trigger print dialog
+        const html = buildHTML();
+        const printWindow = window.open("", "_blank");
+        if (printWindow) {
+          printWindow.document.write(html);
+          printWindow.document.close();
+          printWindow.onload = () => printWindow.print();
         }
-      } catch (_) { /* logo is optional */ }
+      } else {
+        // Native: use expo-print + expo-sharing
+        let logoBase64: string | undefined;
+        try {
+          const asset = Asset!.fromModule(require("../assets/images/splash-icon.png"));
+          await asset.downloadAsync();
+          if (asset.localUri) {
+            logoBase64 = await FileSystem!.readAsStringAsync(asset.localUri, { encoding: FileSystem!.EncodingType.Base64 });
+          }
+        } catch (_) { /* logo is optional */ }
 
-      const html = buildHTML(logoBase64);
-      const { uri } = await Print.printToFileAsync({ html });
-      await Sharing.shareAsync(uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf" });
+        const html = buildHTML(logoBase64);
+        const { uri } = await Print!.printToFileAsync({ html });
+        await Sharing!.shareAsync(uri, { mimeType: "application/pdf", UTI: "com.adobe.pdf" });
+      }
     } catch (e: any) {
       Alert.alert(t("error"), e.message);
     }

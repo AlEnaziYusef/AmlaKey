@@ -5,7 +5,12 @@ import {
   TouchableWithoutFeedback, View,
 } from "react-native";
 import { router } from "expo-router";
-import * as Location from "expo-location";
+// expo-location: use native module on mobile, browser API on web
+const isWeb = Platform.OS === "web";
+let Location: typeof import("expo-location") | null = null;
+if (!isWeb) {
+  Location = require("expo-location");
+}
 import { supabase } from "../../lib/supabase";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
@@ -104,10 +109,25 @@ export default function PropertiesScreen() {
 
   async function detectCityFromLocation(setFormFn: (fn: (prev: FormState) => FormState) => void) {
     try {
-      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (isWeb) {
+        // Web: use browser Geolocation API (no reverse geocoding)
+        if (!navigator.geolocation) return;
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            setFormFn((prev) => ({
+              ...prev,
+              latitude: pos.coords.latitude,
+              longitude: pos.coords.longitude,
+            }));
+          },
+          () => { /* denied or error — user can pick city manually */ }
+        );
+        return;
+      }
+      const { status } = await Location!.requestForegroundPermissionsAsync();
       if (status !== "granted") return;
-      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
-      const [geo] = await Location.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+      const loc = await Location!.getCurrentPositionAsync({ accuracy: Location!.Accuracy.Balanced });
+      const [geo] = await Location!.reverseGeocodeAsync({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
       if (geo) {
         const cityName = geo.city || geo.subregion || geo.region || "";
         const matched = matchCity(cityName);
@@ -115,10 +135,9 @@ export default function PropertiesScreen() {
           ...prev,
           latitude: loc.coords.latitude,
           longitude: loc.coords.longitude,
-          city: matched ?? cityName, // matched key or raw city name for "other"
+          city: matched ?? cityName,
         }));
       } else {
-        // No geocode result, still save coords
         setFormFn((prev) => ({ ...prev, latitude: loc.coords.latitude, longitude: loc.coords.longitude }));
       }
     } catch {

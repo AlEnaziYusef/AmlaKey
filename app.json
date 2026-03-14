@@ -35,8 +35,13 @@
       ]
     },
     "web": {
-      "output": "static",
-      "favicon": "./assets/images/favicon.png"
+      "output": "single",
+      "favicon": "./assets/images/favicon.png",
+      "name": "Amlakey - Property Manager",
+      "shortName": "Amlakey",
+      "description": "Your Smart Property Manager - مدير أملاكك الذكي",
+      "themeColor": "#0284C7",
+      "backgroundColor": "#F1F5F9"
     },
     "plugins": [
       "expo-router",

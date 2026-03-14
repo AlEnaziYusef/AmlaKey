@@ -1,6 +1,6 @@
 import { Stack, router } from "expo-router";
 import { useEffect, useState } from "react";
-import { I18nManager, Image, InteractionManager, StyleSheet, Text, View } from "react-native";
+import { I18nManager, Image, InteractionManager, Platform, StyleSheet, Text, View } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -12,6 +12,8 @@ import { SubscriptionProvider } from "../context/SubscriptionContext";
 import { userKey, BIOMETRIC_LOCK_KEY } from "../lib/storage";
 import BiometricGate from "../components/BiometricGate";
 import { RTLSwipeBack } from "../components/RTLSwipeBack";
+
+const isWeb = Platform.OS === "web";
 
 function SplashView({ isRTL }: { isRTL: boolean }) {
   return (
@@ -92,9 +94,15 @@ function RootNavigator() {
 
   // Sync I18nManager with saved language preference on launch (no restart needed for first launch)
   useEffect(() => {
-    if (I18nManager.isRTL !== isRTL) {
-      I18nManager.allowRTL(isRTL);
-      I18nManager.forceRTL(isRTL);
+    if (isWeb) {
+      // On web, set document direction instead of I18nManager
+      document.documentElement.dir = isRTL ? "rtl" : "ltr";
+      document.documentElement.lang = isRTL ? "ar" : "en";
+    } else {
+      if (I18nManager.isRTL !== isRTL) {
+        I18nManager.allowRTL(isRTL);
+        I18nManager.forceRTL(isRTL);
+      }
     }
   }, [isRTL]);
 
@@ -117,14 +125,20 @@ function RootNavigator() {
         screenOptions={{
           headerShown: false,
           contentStyle: { backgroundColor: colors.background },
-          animation: I18nManager.isRTL ? "slide_from_left" : "slide_from_right",
-          animationDuration: 250,
-          gestureEnabled: !I18nManager.isRTL,
-          gestureDirection: "horizontal",
+          ...(isWeb
+            ? { animation: "none" }
+            : {
+                animation: I18nManager.isRTL ? "slide_from_left" : "slide_from_right",
+                animationDuration: 250,
+                gestureEnabled: !I18nManager.isRTL,
+                gestureDirection: "horizontal",
+              }),
         }}
-        screenLayout={({ children }) => (
-          <RTLSwipeBack>{children}</RTLSwipeBack>
-        )}
+        {...(!isWeb && {
+          screenLayout: ({ children }: { children: React.ReactNode }) => (
+            <RTLSwipeBack>{children}</RTLSwipeBack>
+          ),
+        })}
       >
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
