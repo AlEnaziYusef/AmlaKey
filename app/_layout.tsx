@@ -201,14 +201,14 @@ function useWebCSS() {
       ::-webkit-scrollbar-thumb:hover { background: ${colors.textMuted}; }
       [role="button"]:hover, button:hover { opacity: 0.88; transition: opacity 0.15s ease; }
       input:focus, textarea:focus { border-color: #0EA5E9 !important; }
-      /* Sidebar content offset — target the absolute-positioned screen inside the scene container */
+      /* Sidebar content offset — target the absolute-positioned screen child of scene container */
       :root { --sidebar-w: 240px; }
       @media (min-width: 768px) {
-        div:has(> #amlakey-sidebar) > div:not(#amlakey-sidebar) > div[style*="position"] {
+        div:has(> #amlakey-sidebar) > div:not(#amlakey-sidebar) > div {
           left: var(--sidebar-w) !important;
           transition: left 0.2s ease;
         }
-        [dir="rtl"] div:has(> #amlakey-sidebar) > div:not(#amlakey-sidebar) > div[style*="position"] {
+        [dir="rtl"] div:has(> #amlakey-sidebar) > div:not(#amlakey-sidebar) > div {
           left: 0 !important;
           right: var(--sidebar-w) !important;
           transition: right 0.2s ease;
