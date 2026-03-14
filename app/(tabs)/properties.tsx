@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Modal, Platform, ScrollView,
+  ActivityIndicator, Alert, Keyboard, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView,
   StyleSheet, Text, TextInput, TouchableOpacity,
   TouchableWithoutFeedback, View,
 } from "react-native";
@@ -23,6 +23,7 @@ import { useAuth } from "../../context/AuthContext";
 import { userKey, PERSONAL_INFO_KEY } from "../../lib/storage";
 import { spacing, radii } from "../../constants/theme";
 import { useSubscription, FREE_LIMITS } from "../../context/SubscriptionContext";
+import WebContainer from "../../components/WebContainer";
 
 type PropertyType = "apartment" | "villa" | "commercial" | "shop";
 const CITIES = ["alkharj", "riyadh", "jeddah", "dammam"];
@@ -302,6 +303,7 @@ export default function PropertiesScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={S.container}>
+        <WebContainer maxWidth={1000}>
         <View style={[S.header, { paddingTop: insets.top + 10 }, isRTL && S.rowRev]}>
           <Text style={S.headerTitle}>{t("properties")}</Text>
           <TouchableOpacity style={S.addBtn} onPress={() => { if (!canAddProperty(properties.length)) { Alert.alert(t("propertyLimitTitle"), t("propertyLimitMsg"), [{ text: t("upgrade"), onPress: () => router.push("/paywall" as any) }, { text: t("later"), style: "cancel" }]); return; } const f = { ...EMPTY_FORM, city: defaultCity }; setForm(f); setAddPropErrors({}); setAddVisible(true); detectCityFromLocation(setForm); }} accessibilityRole="button" accessibilityLabel={t("addProperty")}>
@@ -379,9 +381,8 @@ export default function PropertiesScreen() {
                   if (openSwipeId.current === p.id) openSwipeId.current = null;
                 }}
               >
-                <TouchableOpacity
-                  style={S.card}
-                  activeOpacity={0.75}
+                <Pressable
+                  style={({ hovered }: any) => [S.card, hovered && Platform.OS === 'web' && S.cardHover]}
                   onPress={() => router.push({
                     pathname: `/property/${p.id}` as any,
                     params: { name: p.name, total_units: p.total_units, type: p.type },
@@ -414,15 +415,16 @@ export default function PropertiesScreen() {
                   <Text style={[S.viewHint, isRTL && { textAlign: "right" }, { marginTop: 8 }]}>
                     {isRTL ? `‹ ${t("tapToViewUnits")}` : `${t("tapToViewUnits")} ›`}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </SwipeableRow>
             ))}
             <View style={{ height: 100 }} />
           </ScrollView>
         )}
+        </WebContainer>
 
         {/* ── Add Modal ── */}
-        <Modal visible={addVisible} animationType="slide" transparent onRequestClose={() => setAddVisible(false)}>
+        <Modal visible={addVisible} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setAddVisible(false)}>
           <View style={S.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setAddVisible(false); }} />
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
@@ -538,7 +540,7 @@ export default function PropertiesScreen() {
         </Modal>
 
         {/* ── Edit Modal ── */}
-        <Modal visible={editVisible} animationType="slide" transparent onRequestClose={() => setEditVisible(false)}>
+        <Modal visible={editVisible} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setEditVisible(false)}>
           <View style={S.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setEditVisible(false); }} />
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
@@ -674,7 +676,8 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   summaryVal: { fontSize: 18, fontWeight: "700", color: C.accent },
   summaryLbl: { fontSize: 11, color: C.textMuted, marginTop: 2 },
   listContent: { paddingHorizontal: spacing.md, paddingTop: 4 },
-  card: { backgroundColor: C.surface, borderRadius: radii.lg, padding: spacing.md, ...shadow, borderWidth: 1, borderColor: C.border, marginBottom: 12 },
+  card: { backgroundColor: C.surface, borderRadius: radii.lg, padding: spacing.md, ...shadow, borderWidth: 1, borderColor: C.border, marginBottom: 12 } as any,
+  cardHover: { transform: [{ translateY: -2 }], shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 12 },
   cardHeader: { flexDirection: "row", alignItems: "center" },
   cardIcon: { fontSize: 28 },
   cardName: { fontSize: 16, fontWeight: "700", color: C.text },
@@ -688,8 +691,8 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   incomeText: { fontSize: 13, fontWeight: "700", color: C.accent },
   viewHint: { fontSize: 11, color: C.accent },
   emptyText: { textAlign: "center", color: C.textMuted, marginTop: 60, fontSize: 15 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  modalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end", ...(Platform.OS === 'web' ? { justifyContent: 'center', alignItems: 'center' } : {}) },
+  modalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40, ...(Platform.OS === 'web' ? { maxWidth: 560, width: '100%', borderRadius: 24, alignSelf: 'center' } : {}) },
   modalTitle: { fontSize: 20, fontWeight: "700", color: C.text, marginBottom: 16, textAlign: "center" },
   input: { backgroundColor: C.background, borderRadius: radii.md, padding: 12, color: C.text, marginBottom: 10, borderWidth: 1, borderColor: C.border },
   notesInput: { height: 80, textAlignVertical: "top" },

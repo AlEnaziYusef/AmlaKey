@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  Modal, SafeAreaView, ScrollView, StyleSheet, Switch,
+  Modal, Platform, SafeAreaView, ScrollView, StyleSheet, Switch,
   Text, TouchableOpacity, View,
 } from "react-native";
 import * as Haptics from "expo-haptics";
@@ -80,7 +80,60 @@ export function NotificationSettingsModal({ visible, onClose }: Props) {
   );
 
   return (
-    <Modal visible={visible} animationType="slide" presentationStyle="pageSheet" onRequestClose={onClose}>
+    <Modal visible={visible} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} presentationStyle={Platform.OS === 'web' ? undefined : 'pageSheet'} transparent={Platform.OS === 'web'} onRequestClose={onClose}>
+      {Platform.OS === 'web' ? (
+        <View style={S.webOverlay}>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
+          <View style={S.webModalBox}>
+            <View style={[S.header, isRTL && { flexDirection: "row-reverse" }]}>
+              <Text style={S.headerTitle}>{t("notificationSettings")}</Text>
+              <TouchableOpacity onPress={onClose} style={S.closeBtn}>
+                <Text style={S.closeBtnText}>✕</Text>
+              </TouchableOpacity>
+            </View>
+            <ScrollView contentContainerStyle={S.body} showsVerticalScrollIndicator={false}>
+              {!permissionGranted && (
+                <View style={S.permBanner}>
+                  <Text style={[S.permText, isRTL && { textAlign: "right" }]}>
+                    ⚠️ {t("notifPermissionNeeded")}
+                  </Text>
+                </View>
+              )}
+              <View style={S.card}>
+                <ToggleRow label={`🔔  ${t("rentDueReminders")}`} value={local.rentRemindersEnabled} onToggle={() => toggle("rentRemindersEnabled")} />
+                {local.rentRemindersEnabled && (
+                  <View style={S.subSection}>
+                    <Text style={[S.subLabel, isRTL && { textAlign: "right" }]}>{t("remindDaysBefore")}</Text>
+                    <ChipSelector options={RENT_DAY_OPTIONS} selected={local.rentReminderDaysBefore} onSelect={(v) => setDays("rentReminderDaysBefore", v)} />
+                  </View>
+                )}
+              </View>
+              <View style={S.card}>
+                <ToggleRow label={`⚠️  ${t("overdueAlerts")}`} value={local.overdueAlertsEnabled} onToggle={() => toggle("overdueAlertsEnabled")} />
+              </View>
+              <View style={S.card}>
+                <ToggleRow label={`📋  ${t("leaseExpiryAlerts")}`} value={local.leaseExpiryEnabled} onToggle={() => toggle("leaseExpiryEnabled")} />
+                {local.leaseExpiryEnabled && (
+                  <View style={S.subSection}>
+                    <Text style={[S.subLabel, isRTL && { textAlign: "right" }]}>{t("alertDaysBefore")}</Text>
+                    <ChipSelector options={LEASE_DAY_OPTIONS} selected={local.leaseExpiryDaysBefore} onSelect={(v) => setDays("leaseExpiryDaysBefore", v)} />
+                  </View>
+                )}
+              </View>
+              <View style={S.card}>
+                <ToggleRow label={`✅  ${t("paymentConfirmations")}`} value={local.paymentConfirmationEnabled} onToggle={() => toggle("paymentConfirmationEnabled")} />
+              </View>
+              <View style={S.card}>
+                <ToggleRow label={`🔊  ${t("notificationSound")}`} value={local.soundEnabled} onToggle={() => toggle("soundEnabled")} />
+              </View>
+              <TouchableOpacity style={[S.saveBtn, { backgroundColor: C.primary }]} onPress={handleSave} activeOpacity={0.8}>
+                <Text style={S.saveBtnText}>{t("saveSettings")}</Text>
+              </TouchableOpacity>
+            </ScrollView>
+          </View>
+          <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={onClose} />
+        </View>
+      ) : (
       <SafeAreaView style={S.container}>
         {/* Header */}
         <View style={[S.header, isRTL && { flexDirection: "row-reverse" }]}>
@@ -143,6 +196,7 @@ export function NotificationSettingsModal({ visible, onClose }: Props) {
           </TouchableOpacity>
         </ScrollView>
       </SafeAreaView>
+      )}
     </Modal>
   );
 }
@@ -191,4 +245,6 @@ const styles = (C: any, shadow: any) =>
       alignItems: "center", marginTop: spacing.md,
     },
     saveBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+    webOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center" },
+    webModalBox: { maxWidth: 560, width: "100%", maxHeight: "80%", backgroundColor: C.background, borderRadius: 24, overflow: "hidden" },
   });

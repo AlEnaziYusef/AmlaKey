@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import {
-  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Modal, Platform, RefreshControl, ScrollView,
+  ActivityIndicator, Alert, FlatList, KeyboardAvoidingView, Linking, Modal, Platform, Pressable, RefreshControl, ScrollView,
   StyleSheet, Text, TextInput, TouchableOpacity, View,
 } from "react-native";
 import { router, useFocusEffect } from "expo-router";
@@ -18,6 +18,7 @@ import { NotificationCenter } from "../../components/NotificationCenter";
 import { formatDualDate, formatMonthDual } from "../../lib/dateUtils";
 import { useAuth } from "../../context/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
+import WebContainer from "../../components/WebContainer";
 import { useSubscription } from "../../context/SubscriptionContext";
 import { userKey, PERSONAL_INFO_KEY, HIJRI_KEY } from "../../lib/storage";
 
@@ -367,6 +368,7 @@ export default function DashboardScreen() {
           />
         }
       >
+        <WebContainer maxWidth={1200}>
         {isOffline && (
           <View style={{ backgroundColor: "#EF4444", paddingVertical: 8, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>📡 {t("offlineMode")}</Text>
@@ -412,10 +414,9 @@ export default function DashboardScreen() {
 
           {/* Stats Row 1 — Revenue, Overdue */}
           <View style={[S.statsRow, isRTL && S.rowRev]}>
-            <TouchableOpacity
-              style={[S.statCard, { borderTopColor: C.primary }]}
+            <Pressable
+              style={({ hovered }: any) => [S.statCard, { borderTopColor: C.primary }, hovered && S.statCardHover]}
               onPress={() => router.push({ pathname: "/performance", params: { tab: "revenue" } })}
-              activeOpacity={0.75}
               accessibilityRole="button"
               accessibilityLabel={`${t("revenue")}: ${revenue.toLocaleString()} ${t("sar")}`}
             >
@@ -423,11 +424,10 @@ export default function DashboardScreen() {
               <Text style={S.statLabel}>{t("revenue")}</Text>
               <Text style={[S.statVal, { color: C.primary }]}>{revenue.toLocaleString()}</Text>
               <Text style={S.statSub}>{t("sar")} - {currentMonthName}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[S.statCard, { borderTopColor: "#F59E0B" }]}
+            </Pressable>
+            <Pressable
+              style={({ hovered }: any) => [S.statCard, { borderTopColor: "#F59E0B" }, hovered && S.statCardHover]}
               onPress={() => router.push({ pathname: "/performance", params: { tab: "overdue" } })}
-              activeOpacity={0.75}
               accessibilityRole="button"
               accessibilityLabel={`${t("overduePayments")}: ${totalOverdue.toLocaleString()} ${t("sar")}`}
             >
@@ -439,15 +439,14 @@ export default function DashboardScreen() {
               <Text style={S.statSub}>
                 {overdueTenants.length > 0 ? `${overdueTenants.length} ${t("tenantsOverdue")}` : "✅"}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Stats Row 2 — Collected, Expenses */}
           <View style={[S.statsRow, isRTL && S.rowRev]}>
-            <TouchableOpacity
-              style={[S.statCard, { borderTopColor: "#22C55E" }]}
+            <Pressable
+              style={({ hovered }: any) => [S.statCard, { borderTopColor: "#22C55E" }, hovered && S.statCardHover]}
               onPress={() => router.push({ pathname: "/performance", params: { tab: "collected" } })}
-              activeOpacity={0.75}
               accessibilityRole="button"
               accessibilityLabel={`${t("collected")}: ${collected.toLocaleString()} ${t("sar")}, ${collectionPct}%`}
             >
@@ -455,11 +454,10 @@ export default function DashboardScreen() {
               <Text style={S.statLabel}>{t("collected")}</Text>
               <Text style={[S.statVal, { color: "#22C55E" }]}>{collected.toLocaleString()}</Text>
               <Text style={S.statSub}>{collectionPct}%</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[S.statCard, { borderTopColor: "#EF4444" }]}
+            </Pressable>
+            <Pressable
+              style={({ hovered }: any) => [S.statCard, { borderTopColor: "#EF4444" }, hovered && S.statCardHover]}
               onPress={() => router.push({ pathname: "/performance", params: { tab: "expenses" } })}
-              activeOpacity={0.75}
               accessibilityRole="button"
               accessibilityLabel={`${t("totalExpenses")}: ${expenses.toLocaleString()} ${t("sar")}`}
             >
@@ -467,15 +465,14 @@ export default function DashboardScreen() {
               <Text style={S.statLabel}>{t("totalExpenses")}</Text>
               <Text style={[S.statVal, { color: "#EF4444" }]}>{expenses.toLocaleString()}</Text>
               <Text style={S.statSub}>{t("sar")} - {currentMonthName}</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Net Income — full width */}
           <View style={[S.statsRow, { marginBottom: 12 }]}>
-            <TouchableOpacity
-              style={[S.statCardFull, { borderTopColor: netIncome >= 0 ? C.accent : "#EF4444" }]}
+            <Pressable
+              style={({ hovered }: any) => [S.statCardFull, { borderTopColor: netIncome >= 0 ? C.accent : "#EF4444" }, hovered && S.statCardHover]}
               onPress={() => router.push({ pathname: "/performance", params: { tab: "netIncome" } })}
-              activeOpacity={0.75}
               accessibilityRole="button"
               accessibilityLabel={`${t("netIncome")}: ${netIncome.toLocaleString()} ${t("sar")}`}
             >
@@ -483,7 +480,7 @@ export default function DashboardScreen() {
               <Text style={[S.statLabel, { fontSize: 12 }]}>{t("netIncome")}</Text>
               <Text style={[S.statValLg, { color: netIncome >= 0 ? C.accent : "#EF4444" }]}>{netIncome.toLocaleString()}</Text>
               <Text style={S.statSub}>{t("sar")} - {currentMonthName}</Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           {/* Tenants Box */}
@@ -609,10 +606,11 @@ export default function DashboardScreen() {
           )}
           <View style={{ height: 100 }} />
         </>)}
+        </WebContainer>
       </ScrollView>
 
       {/* Occupancy Modal — each property clickable */}
-      <Modal visible={occModal} transparent animationType="slide" onRequestClose={() => setOccModal(false)}>
+      <Modal visible={occModal} transparent animationType={Platform.OS === 'web' ? 'fade' : 'slide'} onRequestClose={() => setOccModal(false)}>
         <View style={S.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => setOccModal(false)} />
           <View style={[S.modalBox, { maxHeight: "70%" }]}>
@@ -658,7 +656,7 @@ export default function DashboardScreen() {
       </Modal>
 
       {/* ── Calendar Modal ── */}
-      <Modal visible={calendarModal} animationType="slide" transparent onRequestClose={() => setCalendarModal(false)}>
+      <Modal visible={calendarModal} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setCalendarModal(false)}>
         <View style={S.modalOverlay}>
           <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { setCalendarModal(false); setSelectedCalDate(null); }} />
           <View style={[S.modalBox, { maxHeight: "80%" }]}>
@@ -778,7 +776,7 @@ export default function DashboardScreen() {
       </Modal>
 
       {/* ── Broadcast Message Modal ── */}
-      <Modal visible={broadcastModal} animationType="slide" transparent onRequestClose={() => setBroadcastModal(false)}>
+      <Modal visible={broadcastModal} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setBroadcastModal(false)}>
         <KeyboardAvoidingView style={{ flex: 1, backgroundColor: "rgba(0,0,0,0.7)" }} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <View style={[S.modalBox, { flex: 1, marginTop: Platform.OS === "ios" ? 56 : 40, borderTopLeftRadius: 24, borderTopRightRadius: 24 }]}>
             {/* Header */}
@@ -955,8 +953,9 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   quickActionEmoji: { fontSize: 22, marginBottom: 6 },
   quickActionLabel: { fontSize: 11, fontWeight: "600", color: C.text, textAlign: "center" },
   statsRow: { flexDirection: "row", paddingHorizontal: spacing.md, gap: 8, marginBottom: 8 },
-  statCard: { flex: 1, backgroundColor: C.surface, borderRadius: radii.lg, padding: 12, borderTopWidth: 3, alignItems: "center", ...shadow },
-  statCardFull: { flex: 1, backgroundColor: C.surface, borderRadius: radii.lg, padding: 14, borderTopWidth: 3, alignItems: "center", ...shadow },
+  statCard: { flex: 1, backgroundColor: C.surface, borderRadius: radii.lg, padding: 12, borderTopWidth: 3, alignItems: "center", ...shadow } as any,
+  statCardHover: Platform.OS === 'web' ? { transform: [{ translateY: -2 }], shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 12 } : {},
+  statCardFull: { flex: 1, backgroundColor: C.surface, borderRadius: radii.lg, padding: 14, borderTopWidth: 3, alignItems: "center", ...shadow } as any,
   statLabel: { fontSize: 11, color: C.textMuted, marginBottom: 2, textAlign: "center" },
   statVal: { fontSize: 18, fontWeight: "700", textAlign: "center" },
   statValLg: { fontSize: 24, fontWeight: "700", textAlign: "center" },
@@ -998,8 +997,8 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   showMoreText: { color: C.accent, fontWeight: "600", fontSize: 13 },
   rowBetween: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 8 },
   // Occupancy modal
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  modalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 30 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end", ...(Platform.OS === 'web' ? { justifyContent: 'center', alignItems: 'center' } : {}) },
+  modalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 30, ...(Platform.OS === 'web' ? { maxWidth: 560, width: '100%', borderRadius: 24, alignSelf: 'center' } : {}) },
   modalHeader: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 16 },
   modalTitle: { fontSize: 18, fontWeight: "700", color: C.text },
   propOccRow: { backgroundColor: C.background, borderRadius: radii.md, padding: 14, marginBottom: 10, borderWidth: 1, borderColor: C.border },

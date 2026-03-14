@@ -13,6 +13,7 @@ import { NotificationSettingsModal } from "../../components/NotificationSettings
 import { exportAllData, importAllData, getLastBackupDate } from "../../lib/backup";
 import { userKey, PERSONAL_INFO_KEY, BIOMETRIC_LOCK_KEY } from "../../lib/storage";
 import { useSubscription } from "../../context/SubscriptionContext";
+import WebContainer from "../../components/WebContainer";
 
 const isWeb = Platform.OS === "web";
 
@@ -133,6 +134,7 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={S.container} contentContainerStyle={{ paddingBottom: 100 }}>
+      <WebContainer maxWidth={768}>
 
       {/* ══════════════ PROFILE HEADER ══════════════ */}
       <View style={S.headerBg}>
@@ -342,6 +344,7 @@ export default function ProfileScreen() {
 
       {/* ── Notification Settings Modal ── */}
       <NotificationSettingsModal visible={notifModal} onClose={() => setNotifModal(false)} />
+      </WebContainer>
 
     </ScrollView>
   );

@@ -27,6 +27,7 @@ import { useAuth } from "../../context/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, radii } from "../../constants/theme";
 import { userKey, EJAR_IMPORT_KEY } from "../../lib/storage";
+import WebContainer from "../../components/WebContainer";
 
 type TenantStatus = "active" | "expired";
 type FilterType = "all" | TenantStatus;
@@ -512,6 +513,7 @@ true;
   return (
     <TouchableWithoutFeedback onPress={dismissAll} accessible={false}>
       <View style={S.container}>
+        <WebContainer maxWidth={1000}>
         <View style={[S.header, { paddingTop: insets.top + 10 }, isRTL && S.rowRev]}>
           <Text style={S.headerTitle}>{t("tenants")}</Text>
           <TouchableOpacity style={S.addBtn} onPress={() => setAddChoiceVisible(true)} accessibilityRole="button" accessibilityLabel={t("addTenant")}>
@@ -655,6 +657,7 @@ true;
             ))}
           </ScrollView>
         )}
+        </WebContainer>
 
         {/* Add Choice Modal — Manual vs Ejar */}
         <Modal visible={addChoiceVisible} animationType="fade" transparent onRequestClose={() => setAddChoiceVisible(false)}>
@@ -707,7 +710,7 @@ true;
         </Modal>
 
         {/* Add Tenant Modal */}
-        <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
+        <Modal visible={modalVisible} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setModalVisible(false)}>
           <View style={S.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { dismissAll(); setModalVisible(false); }} />
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
@@ -863,7 +866,7 @@ true;
         </Modal>
 
         {/* Collect Payment Modal */}
-        <Modal visible={payModalVisible} animationType="slide" transparent onRequestClose={() => setPayModalVisible(false)}>
+        <Modal visible={payModalVisible} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setPayModalVisible(false)}>
           <View style={S.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { dismissAll(); setPayModalVisible(false); }} />
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
@@ -925,7 +928,7 @@ true;
         </Modal>
 
         {/* Edit Tenant Modal */}
-        <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
+        <Modal visible={editModalVisible} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setEditModalVisible(false)}>
           <View style={S.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { dismissAll(); setEditModalVisible(false); }} />
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
@@ -1111,10 +1114,10 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   emptyText: { textAlign: "center", color: C.textMuted, marginTop: 0, fontSize: 15 },
   emptyAddBtn: { marginTop: 16, backgroundColor: C.accent, borderRadius: radii.md, paddingHorizontal: 24, paddingVertical: 12 },
   emptyAddBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  modalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end", ...(Platform.OS === 'web' ? { justifyContent: 'center', alignItems: 'center' } : {}) },
+  modalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40, ...(Platform.OS === 'web' ? { maxWidth: 560, width: '100%', borderRadius: 24, alignSelf: 'center' } : {}) },
   modalTitle: { fontSize: 20, fontWeight: "700", color: C.text, marginBottom: 16, textAlign: "center" },
-  choiceBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 30 },
+  choiceBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 30, ...(Platform.OS === 'web' ? { maxWidth: 560, width: '100%', borderRadius: 24, alignSelf: 'center' } : {}) },
   choiceTitle: { fontSize: 20, fontWeight: "700", color: C.text, textAlign: "center", marginBottom: 20 },
   choiceOption: { flexDirection: "row", alignItems: "center", backgroundColor: C.background, borderRadius: radii.lg, padding: 16, marginBottom: 10, borderWidth: 1.5, borderColor: C.border, gap: 14 },
   choiceOptionEjar: { borderColor: "#25935f60", backgroundColor: "#25935f08" },

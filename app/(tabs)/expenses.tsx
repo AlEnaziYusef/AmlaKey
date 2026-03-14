@@ -6,6 +6,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  Pressable,
   RefreshControl,
   ScrollView,
   StyleSheet,
@@ -30,6 +31,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { userKey, HIJRI_KEY } from "../../lib/storage";
 import { SwipeableRow, SwipeableRowRef } from "../../components/SwipeableRow";
 import { suggestCategory } from "../../lib/expenseCategorizer";
+import WebContainer from "../../components/WebContainer";
 
 type Category = "water" | "electricity" | "maintenance" | "cleaning" | "management" | "other" | "insurance" | "taxes";
 
@@ -710,6 +712,7 @@ export default function ExpensesScreen() {
 
   return (
       <View style={S.container}>
+        <WebContainer maxWidth={1000}>
         <View style={[S.header, { paddingTop: insets.top + 10 }, isRTL && S.rowRev]}>
           <Text style={S.headerTitle}>{t("expenses")}</Text>
           <TouchableOpacity style={S.addBtn} onPress={() => setModalVisible(true)} accessibilityRole="button" accessibilityLabel={t("addExpense")}>
@@ -843,7 +846,7 @@ export default function ExpensesScreen() {
                     if (openSwipeId.current === exp.id) openSwipeId.current = null;
                   }}
                 >
-                  <View style={S.cardInner} accessible={true} accessibilityLabel={`${t(exp.category as TKey)}: ${exp.amount.toLocaleString()} ${t("sar")}${exp.properties?.name ? `, ${exp.properties.name}` : ""}${exp.description ? `, ${exp.description}` : ""}`}>
+                  <Pressable style={({ hovered }: any) => [S.cardInner, hovered && Platform.OS === 'web' && S.cardInnerHover]} accessible={true} accessibilityLabel={`${t(exp.category as TKey)}: ${exp.amount.toLocaleString()} ${t("sar")}${exp.properties?.name ? `, ${exp.properties.name}` : ""}${exp.description ? `, ${exp.description}` : ""}`}>
                     <View style={[S.cardRow, isRTL && S.rowRev]}>
                       <View style={[S.catIcon, { backgroundColor: CATEGORY_COLORS[exp.category] + "20" }]}>
                         <Text style={{ fontSize: 20 }}>{CATEGORY_ICONS[exp.category]}</Text>
@@ -876,15 +879,16 @@ export default function ExpensesScreen() {
                         )}
                       </View>
                     </View>
-                  </View>
+                  </Pressable>
                 </SwipeableRow>
               </View>
             ))}
           </ScrollView>
         )}
+        </WebContainer>
 
         {/* Add Modal */}
-        <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={() => setModalVisible(false)}>
+        <Modal visible={modalVisible} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setModalVisible(false)}>
           <View style={S.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setModalVisible(false); }} />
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
@@ -1060,7 +1064,7 @@ export default function ExpensesScreen() {
         </Modal>
 
         {/* Integration Modal */}
-        <Modal visible={integrationModal} animationType="slide" transparent onRequestClose={() => setIntegrationModal(false)}>
+        <Modal visible={integrationModal} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setIntegrationModal(false)}>
           <View style={S.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { setIntegrationModal(false); fetchAll(); }} />
               <View style={[S.modalBox, { maxHeight: "75%" }]}>
@@ -1163,7 +1167,7 @@ export default function ExpensesScreen() {
         </Modal>
 
         {/* Edit Modal */}
-        <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
+        <Modal visible={editModalVisible} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setEditModalVisible(false)}>
           <View style={S.modalOverlay}>
             <TouchableOpacity style={{ flex: 1 }} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setEditModalVisible(false); }} />
             <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
@@ -1328,7 +1332,8 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   filterTabText: { color: C.textMuted, fontSize: 13 },
   filterTabTextActive: { color: "#fff", fontWeight: "700" },
   swipeWrapper: { marginHorizontal: spacing.md, marginBottom: 10 },
-  cardInner: { backgroundColor: C.surface, borderRadius: radii.lg, padding: spacing.md, ...shadow },
+  cardInner: { backgroundColor: C.surface, borderRadius: radii.lg, padding: spacing.md, ...shadow } as any,
+  cardInnerHover: { backgroundColor: C.background, shadowOffset: { width: 0, height: 4 }, shadowOpacity: 0.12, shadowRadius: 8 },
   cardRow: { flexDirection: "row", alignItems: "center" },
   catIcon: { width: 44, height: 44, borderRadius: 12, justifyContent: "center", alignItems: "center" },
   catName: { fontSize: 15, fontWeight: "600", color: C.text },
@@ -1339,8 +1344,8 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   billPaidBadge: { fontSize: 10, color: "#22C55E", fontWeight: "600", marginTop: 3 },
   billUnpaidBadge: { fontSize: 10, color: "#F59E0B", fontWeight: "600", marginTop: 3 },
   emptyText: { textAlign: "center", color: C.textMuted, marginTop: 60, fontSize: 15 },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end" },
-  modalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40 },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "flex-end", ...(Platform.OS === 'web' ? { justifyContent: 'center', alignItems: 'center' } : {}) },
+  modalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40, ...(Platform.OS === 'web' ? { maxWidth: 560, width: '100%', borderRadius: 24, alignSelf: 'center' } : {}) },
   modalTitle: { fontSize: 20, fontWeight: "700", color: C.text, marginBottom: 16, textAlign: "center" },
   input: { backgroundColor: C.background, borderRadius: radii.md, padding: 12, color: C.text, marginBottom: 10, borderWidth: 1, borderColor: C.border },
   fieldLabel: { color: C.textMuted, fontSize: 13, marginBottom: 6 },

@@ -171,8 +171,41 @@ function RootNavigator() {
   );
 }
 
+function useWebCSS() {
+  const { colors } = useTheme();
+  useEffect(() => {
+    if (!isWeb) return;
+    const id = "amlakey-web-css";
+    let style = document.getElementById(id) as HTMLStyleElement | null;
+    if (!style) {
+      style = document.createElement("style");
+      style.id = id;
+      document.head.appendChild(style);
+    }
+    style.textContent = `
+      html { scroll-behavior: smooth; }
+      body {
+        background-color: ${colors.background};
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        overflow-y: scroll;
+      }
+      *:focus-visible { outline: 2px solid #0EA5E9; outline-offset: 2px; }
+      ::selection { background: rgba(14, 165, 233, 0.2); }
+      [role="button"], button, a { cursor: pointer; }
+      ::-webkit-scrollbar { width: 7px; height: 7px; }
+      ::-webkit-scrollbar-track { background: transparent; }
+      ::-webkit-scrollbar-thumb { background: ${colors.border}; border-radius: 4px; }
+      ::-webkit-scrollbar-thumb:hover { background: ${colors.textMuted}; }
+      [role="button"]:hover, button:hover { opacity: 0.88; transition: opacity 0.15s ease; }
+      input:focus, textarea:focus { border-color: #0EA5E9 !important; }
+    `;
+  }, [colors]);
+}
+
 function ThemedRoot() {
   const { colors, isDark } = useTheme();
+  useWebCSS();
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: colors.background }}>
       <StatusBar style={isDark ? "light" : "dark"} />
