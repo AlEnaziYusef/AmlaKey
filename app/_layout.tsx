@@ -110,7 +110,8 @@ function RootNavigator() {
     if (loading) return;
     // Navigate to the correct screen based on auth state
     if (!session) {
-      router.replace("/auth");
+      // Web: show landing page first; Native: go straight to auth
+      router.replace(isWeb ? "/landing" : "/auth");
     } else {
       router.replace("/(tabs)");
     }
@@ -140,6 +141,7 @@ function RootNavigator() {
           ),
         })}
       >
+        <Stack.Screen name="landing" options={{ headerShown: false }} />
         <Stack.Screen name="auth" options={{ headerShown: false }} />
         <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
         <Stack.Screen name="property/[id]" options={{ headerShown: false }} />
