@@ -1,0 +1,32 @@
+name: Daily Push Notifications
+
+# Runs daily at 6:00 AM Saudi time (3:00 AM UTC)
+on:
+  schedule:
+    - cron: '0 3 * * *'
+  workflow_dispatch: # Allow manual trigger for testing
+
+jobs:
+  send-notifications:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Trigger push notification check
+        run: |
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            "${{ secrets.SUPABASE_URL }}/functions/v1/push-notify" \
+            -H "Authorization: Bearer ${{ secrets.CRON_SECRET }}" \
+            -H "Content-Type: application/json" \
+            -d '{}')
+
+          HTTP_CODE=$(echo "$RESPONSE" | tail -1)
+          BODY=$(echo "$RESPONSE" | head -n -1)
+
+          echo "HTTP Status: $HTTP_CODE"
+          echo "Response: $BODY"
+
+          if [ "$HTTP_CODE" -ge 200 ] && [ "$HTTP_CODE" -lt 400 ]; then
+            echo "✅ Push notifications processed"
+          else
+            echo "⚠️ Push notification check failed"
+            exit 1
+          fi

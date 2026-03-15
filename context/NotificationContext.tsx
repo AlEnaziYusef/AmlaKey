@@ -5,6 +5,7 @@ import { Platform } from "react-native";
 import { useLanguage } from "./LanguageContext";
 import { useAuth } from "./AuthContext";
 import { userKey, NOTIFICATIONS_KEY, NOTIFICATION_HISTORY_KEY } from "../lib/storage";
+import { supabase } from "../lib/supabase";
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 export type NotificationType = "rent_due_reminder" | "overdue_rent" | "lease_expiry_warning" | "payment_received";
@@ -146,24 +147,42 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     })();
   }, [uid]);
 
+  // ── Register push token with Supabase ──────────────────────────────────────
+  const registerPushToken = useCallback(async () => {
+    if (!uid || Platform.OS === "web") return;
+    try {
+      const { data: tokenData } = await Notifications.getExpoPushTokenAsync({
+        projectId: "89e0b67b-e1fc-43be-b7bc-8b0016285259",
+      });
+      if (tokenData) {
+        await supabase.from("push_tokens").upsert(
+          { user_id: uid, token: tokenData, platform: Platform.OS },
+          { onConflict: "user_id,token" }
+        );
+      }
+    } catch {}
+  }, [uid]);
+
   // ── Request permission on mount ─────────────────────────────────────────────
   useEffect(() => {
     (async () => {
       const { status } = await Notifications.getPermissionsAsync();
       if (status === "granted") {
         setPermissionGranted(true);
+        registerPushToken();
       }
     })();
-  }, []);
+  }, [registerPushToken]);
 
   const requestPermission = useCallback(async (): Promise<boolean> => {
     const { status: existing } = await Notifications.getPermissionsAsync();
-    if (existing === "granted") { setPermissionGranted(true); return true; }
+    if (existing === "granted") { setPermissionGranted(true); registerPushToken(); return true; }
     const { status } = await Notifications.requestPermissionsAsync();
     const granted = status === "granted";
     setPermissionGranted(granted);
+    if (granted) registerPushToken();
     return granted;
-  }, []);
+  }, [registerPushToken]);
 
   // ── Persist notifications whenever they change ──────────────────────────────
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -223,8 +242,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
     const next = { ...settingsRef.current, ...partial };
     setSettings(next);
     settingsRef.current = next;
-    if (uid) await AsyncStorage.setItem(userKey(uid, NOTIFICATIONS_KEY), JSON.stringify(next));
-  }, []);
+    if (uid) {
+      await AsyncStorage.setItem(userKey(uid, NOTIFICATIONS_KEY), JSON.stringify(next));
+      // Sync to Supabase for server-side push notifications
+      supabase.from("notification_settings").upsert({
+        user_id: uid,
+        rent_reminders: next.rentRemindersEnabled,
+        rent_reminder_days: next.rentReminderDaysBefore,
+        overdue_alerts: next.overdueAlertsEnabled,
+        lease_expiry: next.leaseExpiryEnabled,
+        lease_expiry_days: next.leaseExpiryDaysBefore,
+        sound: next.soundEnabled,
+        lang,
+        updated_at: new Date().toISOString(),
+      }, { onConflict: "user_id" }).then(() => {});
+    }
+  }, [uid, lang]);
 
   // ── Schedule local notifications ────────────────────────────────────────────
   const rescheduleAll = useCallback(async (tenants: Tenant[], payments: Payment[]) => {
