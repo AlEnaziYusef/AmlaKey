@@ -217,7 +217,10 @@ function useWebCSS() {
       ::-webkit-scrollbar-thumb { background: ${colors.border}; border-radius: 4px; }
       ::-webkit-scrollbar-thumb:hover { background: ${colors.textMuted}; }
       [role="button"]:hover, button:hover { opacity: 0.88; transition: opacity 0.15s ease; }
+      [role="button"] { transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease; }
       input:focus, textarea:focus { border-color: #0EA5E9 !important; }
+      /* Modal backdrop blur */
+      [aria-modal="true"] > div:first-child { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
       /* Sidebar content offset — target the absolute-positioned screen child of scene container */
       :root { --sidebar-w: 240px; }
       @media (min-width: 768px) {

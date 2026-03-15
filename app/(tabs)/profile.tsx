@@ -13,7 +13,7 @@ import { NotificationSettingsModal } from "../../components/NotificationSettings
 import { exportAllData, importAllData, getLastBackupDate } from "../../lib/backup";
 import { userKey, PERSONAL_INFO_KEY, BIOMETRIC_LOCK_KEY } from "../../lib/storage";
 import { useSubscription } from "../../context/SubscriptionContext";
-import WebContainer from "../../components/WebContainer";
+import WebContainer, { useResponsive } from "../../components/WebContainer";
 
 const isWeb = Platform.OS === "web";
 
@@ -34,6 +34,7 @@ export default function ProfileScreen() {
   const { colors: C, isDark, toggleTheme, shadow } = useTheme();
   const { user, signOut } = useAuth();
   const { isPro, hasFeature } = useSubscription();
+  const { isDesktop, isWide } = useResponsive();
   const S = useMemo(() => styles(C, shadow, isDark), [C, shadow, isDark]);
 
   // Personal info
@@ -134,7 +135,7 @@ export default function ProfileScreen() {
 
   return (
     <ScrollView style={S.container} contentContainerStyle={{ paddingBottom: 100 }}>
-      <WebContainer maxWidth={768}>
+      <WebContainer maxWidth={isDesktop ? 1200 : 768}>
 
       {/* ══════════════ PROFILE HEADER ══════════════ */}
       <View style={S.headerBg}>
@@ -158,6 +159,11 @@ export default function ProfileScreen() {
         </View>
       </View>
 
+      {/* Two-column layout on desktop */}
+      <View style={isDesktop ? { flexDirection: isRTL ? "row-reverse" : "row", gap: 20, paddingHorizontal: 16, marginTop: 8 } : {}}>
+      {/* Left column */}
+      <View style={isDesktop ? { flex: 3 } : {}}>
+
       {/* ── Subscription Banner ── */}
       <TouchableOpacity
         style={[S.perfBanner, { backgroundColor: isPro ? "#10B981" : C.accent }, isRTL && { flexDirection: "row-reverse" }]}
@@ -176,32 +182,8 @@ export default function ProfileScreen() {
         <Text style={{ color: "#FFF", fontSize: 18 }}>{isRTL ? "‹" : "›"}</Text>
       </TouchableOpacity>
 
-      {/* ── Performance & Reports Banners ── */}
-      <TouchableOpacity
-        style={[S.perfBanner, isRTL && { flexDirection: "row-reverse" }]}
-        onPress={() => router.push("/performance")}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel={t("performance")}
-      >
-        <Text style={{ fontSize: 20 }}>📊</Text>
-        <Text style={[S.perfText, isRTL && { textAlign: "right" }]}>{t("performance")}</Text>
-        <Text style={{ fontSize: 16, color: C.textMuted }}>{isRTL ? "‹" : "›"}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={[S.perfBanner, isRTL && { flexDirection: "row-reverse" }, { marginTop: 8 }]}
-        onPress={() => router.push("/reports")}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel={t("reports")}
-      >
-        <Text style={{ fontSize: 20 }}>📋</Text>
-        <Text style={[S.perfText, isRTL && { textAlign: "right" }]}>{t("reports")}</Text>
-        <Text style={{ fontSize: 16, color: C.textMuted }}>{isRTL ? "‹" : "›"}</Text>
-      </TouchableOpacity>
-
       {/* ══════════════ GENERAL ══════════════ */}
-      <View style={S.card}>
+      <View style={[S.card, isDesktop && { marginTop: 16 }]}>
         <Row icon="👤" label={t("personalInfo")} onPress={() => router.push("/personal-info")} />
         <Divider />
         <Row icon="🔔" label={t("notificationSettings")} onPress={() => setNotifModal(true)} />
@@ -308,8 +290,37 @@ export default function ProfileScreen() {
         )}
       </View>
 
+      </View>{/* End left column */}
+
+      {/* Right column */}
+      <View style={isDesktop ? { flex: 2 } : {}}>
+
+      {/* ── Performance & Reports Banners ── */}
+      <TouchableOpacity
+        style={[S.perfBanner, isRTL && { flexDirection: "row-reverse" }]}
+        onPress={() => router.push("/performance")}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t("performance")}
+      >
+        <Text style={{ fontSize: 20 }}>📊</Text>
+        <Text style={[S.perfText, isRTL && { textAlign: "right" }]}>{t("performance")}</Text>
+        <Text style={{ fontSize: 16, color: C.textMuted }}>{isRTL ? "‹" : "›"}</Text>
+      </TouchableOpacity>
+      <TouchableOpacity
+        style={[S.perfBanner, isRTL && { flexDirection: "row-reverse" }, { marginTop: 8 }]}
+        onPress={() => router.push("/reports")}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t("reports")}
+      >
+        <Text style={{ fontSize: 20 }}>📋</Text>
+        <Text style={[S.perfText, isRTL && { textAlign: "right" }]}>{t("reports")}</Text>
+        <Text style={{ fontSize: 16, color: C.textMuted }}>{isRTL ? "‹" : "›"}</Text>
+      </TouchableOpacity>
+
       {/* ══════════════ ABOUT & HELP ══════════════ */}
-      <View style={[S.card, { marginTop: 20 }]}>
+      <View style={[S.card, { marginTop: 16 }]}>
         <Row icon="📄" label={t("termsOfService")} onPress={() => router.push("/terms" as any)} />
         <Divider />
         <Row icon="🔒" label={t("privacyPolicy")} onPress={() => router.push("/privacy" as any)} />
@@ -345,6 +356,9 @@ export default function ProfileScreen() {
         <Text style={S.signOutIcon}>🚪</Text>
         <Text style={S.signOutText}>{t("signOut") ?? "Sign Out"}</Text>
       </TouchableOpacity>
+
+      </View>{/* End right column */}
+      </View>{/* End two-column layout */}
 
       <Text style={S.footer}>{t("footerText")}</Text>
 

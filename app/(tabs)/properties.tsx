@@ -23,7 +23,7 @@ import { useAuth } from "../../context/AuthContext";
 import { userKey, PERSONAL_INFO_KEY } from "../../lib/storage";
 import { spacing, radii } from "../../constants/theme";
 import { useSubscription, FREE_LIMITS } from "../../context/SubscriptionContext";
-import WebContainer from "../../components/WebContainer";
+import WebContainer, { useResponsive } from "../../components/WebContainer";
 
 type PropertyType = "apartment" | "villa" | "commercial" | "shop";
 const CITIES = ["alkharj", "riyadh", "jeddah", "dammam"];
@@ -64,6 +64,7 @@ export default function PropertiesScreen() {
   const { colors: C, shadow } = useTheme();
   const { user } = useAuth();
   const { canAddProperty, canAddUnits } = useSubscription();
+  const { isDesktop, isWide } = useResponsive();
   const insets = useSafeAreaInsets();
   const uid = user?.id ?? "";
   const S = useMemo(() => styles(C, shadow), [C, shadow]);
@@ -303,7 +304,7 @@ export default function PropertiesScreen() {
   return (
     <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
       <View style={S.container}>
-        <WebContainer maxWidth={1000}>
+        <WebContainer maxWidth={1200}>
         <View style={[S.header, { paddingTop: insets.top + 10 }, isRTL && S.rowRev]}>
           <Text style={S.headerTitle}>{t("properties")}</Text>
           <TouchableOpacity style={S.addBtn} onPress={() => { if (!canAddProperty(properties.length)) { Alert.alert(t("propertyLimitTitle"), t("propertyLimitMsg"), [{ text: t("upgrade"), onPress: () => router.push("/paywall" as any) }, { text: t("later"), style: "cancel" }]); return; } const f = { ...EMPTY_FORM, city: defaultCity }; setForm(f); setAddPropErrors({}); setAddVisible(true); detectCityFromLocation(setForm); }} accessibilityRole="button" accessibilityLabel={t("addProperty")}>
@@ -361,9 +362,10 @@ export default function PropertiesScreen() {
             {displayedProperties.length === 0 && (
               <Text style={S.emptyText}>{searchQuery ? t("noResults") : t("noProperties")}</Text>
             )}
+            <View style={isDesktop ? [{ flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: 12 }] : {}}>
             {displayedProperties.map((p) => (
+              <View key={p.id} style={isWide ? { width: "31.5%" } : isDesktop ? { width: "48%" } : { width: "100%" }}>
               <SwipeableRow
-                key={p.id}
                 ref={(r) => { swipeRefs.current.set(p.id, r); }}
                 isRTL={isRTL}
                 onEdit={() => openEdit(p)}
@@ -382,7 +384,7 @@ export default function PropertiesScreen() {
                 }}
               >
                 <Pressable
-                  style={({ hovered }: any) => [S.card, hovered && Platform.OS === 'web' && S.cardHover]}
+                  style={({ hovered }: any) => [S.card, isDesktop && S.cardDesktop, hovered && Platform.OS === 'web' && S.cardHover]}
                   onPress={() => router.push({
                     pathname: `/property/${p.id}` as any,
                     params: { name: p.name, total_units: p.total_units, type: p.type },
@@ -392,9 +394,9 @@ export default function PropertiesScreen() {
                   accessibilityHint={t("tapToViewUnits")}
                 >
                   <View style={[S.cardHeader, isRTL && S.rowRev]}>
-                    <Text style={S.cardIcon}>{TYPE_ICONS[p.type] ?? "🏠"}</Text>
+                    <Text style={[S.cardIcon, isDesktop && { fontSize: 30 }]}>{TYPE_ICONS[p.type] ?? "🏠"}</Text>
                     <View style={{ flex: 1, marginHorizontal: 8 }}>
-                      <Text style={[S.cardName, isRTL && { textAlign: "right" }]}>{p.name}</Text>
+                      <Text style={[S.cardName, isRTL && { textAlign: "right" }, isDesktop && { fontSize: 16 }]}>{p.name}</Text>
                       <Text style={[S.cardCity, isRTL && { textAlign: "right" }]}>{p.city}</Text>
                       {!!p.notes && (
                         <Text style={[S.cardNotes, isRTL && { textAlign: "right" }]} numberOfLines={1}>
@@ -417,7 +419,9 @@ export default function PropertiesScreen() {
                   </Text>
                 </Pressable>
               </SwipeableRow>
+              </View>
             ))}
+            </View>
             <View style={{ height: 100 }} />
           </ScrollView>
         )}
@@ -677,6 +681,7 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   summaryLbl: { fontSize: 11, color: C.textMuted, marginTop: 2 },
   listContent: { paddingHorizontal: spacing.md, paddingTop: 4 },
   card: { backgroundColor: C.surface, borderRadius: radii.lg, padding: spacing.md, ...shadow, borderWidth: 1, borderColor: C.border, marginBottom: 12 } as any,
+  cardDesktop: { padding: 20, marginBottom: 0, ...(Platform.OS === 'web' ? { cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' } as any : {}) },
   cardHover: { transform: [{ translateY: -2 }], shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 12 },
   cardHeader: { flexDirection: "row", alignItems: "center" },
   cardIcon: { fontSize: 28 },

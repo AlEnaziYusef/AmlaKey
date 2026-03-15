@@ -31,7 +31,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { userKey, HIJRI_KEY } from "../../lib/storage";
 import { SwipeableRow, SwipeableRowRef } from "../../components/SwipeableRow";
 import { suggestCategory } from "../../lib/expenseCategorizer";
-import WebContainer from "../../components/WebContainer";
+import WebContainer, { useResponsive } from "../../components/WebContainer";
 
 type Category = "water" | "electricity" | "maintenance" | "cleaning" | "management" | "other" | "insurance" | "taxes";
 
@@ -112,6 +112,7 @@ export default function ExpensesScreen() {
   const { colors: C, shadow, isDark } = useTheme();
   const { user } = useAuth();
   const uid = user?.id ?? "";
+  const { isDesktop, isWide } = useResponsive();
   const insets = useSafeAreaInsets();
   const S = useMemo(() => styles(C, shadow), [C, shadow]);
 
@@ -844,7 +845,7 @@ export default function ExpensesScreen() {
 
   return (
       <View style={S.container}>
-        <WebContainer maxWidth={1000}>
+        <WebContainer maxWidth={1200}>
         <View style={[S.header, { paddingTop: insets.top + 10 }, isRTL && S.rowRev]}>
           <Text style={S.headerTitle}>{t("expenses")}</Text>
           <TouchableOpacity style={S.addBtn} onPress={() => setModalVisible(true)} accessibilityRole="button" accessibilityLabel={t("addExpense")}>
@@ -950,8 +951,9 @@ export default function ExpensesScreen() {
             {filtered.length === 0 && (
               <Text style={S.emptyText}>{t("noExpenses")}</Text>
             )}
+            <View style={isDesktop ? { flexDirection: isRTL ? "row-reverse" : "row", flexWrap: "wrap", gap: 12, paddingHorizontal: spacing.md } : {}}>
             {filtered.map((exp) => (
-              <View key={exp.id} style={S.swipeWrapper}>
+              <View key={exp.id} style={[isDesktop ? { width: isWide ? "31.5%" : "48%" } : {}, !isDesktop && S.swipeWrapper]}>
                 <SwipeableRow
                   ref={(r) => { swipeRefs.current.set(exp.id, r); }}
                   isRTL={isRTL}
@@ -1015,6 +1017,7 @@ export default function ExpensesScreen() {
                 </SwipeableRow>
               </View>
             ))}
+            </View>
           </ScrollView>
         )}
         </WebContainer>

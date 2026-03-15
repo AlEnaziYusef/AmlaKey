@@ -18,7 +18,7 @@ import { NotificationCenter } from "../../components/NotificationCenter";
 import { formatDualDate, formatMonthDual } from "../../lib/dateUtils";
 import { useAuth } from "../../context/AuthContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import WebContainer from "../../components/WebContainer";
+import WebContainer, { useResponsive } from "../../components/WebContainer";
 import { useSubscription } from "../../context/SubscriptionContext";
 import { userKey, PERSONAL_INFO_KEY, HIJRI_KEY } from "../../lib/storage";
 
@@ -77,6 +77,7 @@ export default function DashboardScreen() {
   const { rescheduleAll } = useNotification();
   const { user } = useAuth();
   const { hasFeature } = useSubscription();
+  const { isDesktop, isWide } = useResponsive();
   const insets = useSafeAreaInsets();
   const uid = user?.id ?? "";
   const [notifCenterOpen, setNotifCenterOpen] = useState(false);
@@ -378,10 +379,10 @@ export default function DashboardScreen() {
         )}
 
         {/* Header */}
-        <View style={[S.header, { paddingTop: Platform.OS === "web" ? 10 : insets.top + 10 }, isRTL && S.rowRev]}>
+        <View style={[S.header, { paddingTop: Platform.OS === "web" ? 10 : insets.top + 10 }, isRTL && S.rowRev, isDesktop && S.headerDesktop]}>
           <View style={{ flex: 1 }}>
-            <Text style={[S.greeting, isRTL && { textAlign: "right" }]}>{getGreeting(t)}{userName ? `, ${userName}` : ""} 👋</Text>
-            <Text style={[S.subtitle, isRTL && { textAlign: "right" }]}>{t("hereIsYourOverview")}</Text>
+            <Text style={[S.greeting, isRTL && { textAlign: "right" }, isDesktop && { fontSize: 28 }]}>{getGreeting(t)}{userName ? `, ${userName}` : ""} 👋</Text>
+            <Text style={[S.subtitle, isRTL && { textAlign: "right" }, isDesktop && { fontSize: 14, marginTop: 4 }]}>{t("hereIsYourOverview")}</Text>
           </View>
           <View style={[S.headerRight, isRTL && S.rowRev]}>
             <NotificationBell onPress={() => setNotifCenterOpen(true)} />
@@ -392,146 +393,151 @@ export default function DashboardScreen() {
         </View>
 
         {/* Quick Actions */}
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={[S.quickActionsRow, isRTL && { flexDirection: "row-reverse" }]}
-        >
-          {([
+        {(() => {
+          const quickActions = [
             { emoji: "🏠", label: t("addProperty"), onPress: () => router.push("/(tabs)/properties") },
             { emoji: "💳", label: t("collectPayment"), onPress: () => router.push("/(tabs)/tenants") },
             { emoji: "🧾", label: t("addExpense"), onPress: () => router.push("/(tabs)/expenses") },
             { emoji: "🔔", label: t("broadcastMessage"), onPress: () => { setBroadcastFilter("all"); setBroadcastSelected(null); setBroadcastMsgType("auto"); setBroadcastCustomMsg(""); setBroadcastModal(true); } },
-          ] as const).map((item, i) => (
-            <TouchableOpacity key={i} style={S.quickActionCard} onPress={item.onPress} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={item.label}>
-              <Text style={S.quickActionEmoji}>{item.emoji}</Text>
-              <Text style={S.quickActionLabel} numberOfLines={1}>{item.label}</Text>
+          ] as const;
+          const cards = quickActions.map((item, i) => (
+            <TouchableOpacity key={i} style={[S.quickActionCard, isDesktop && S.quickActionCardDesktop]} onPress={item.onPress} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={item.label}>
+              <Text style={[S.quickActionEmoji, isDesktop && { fontSize: 26 }]}>{item.emoji}</Text>
+              <Text style={[S.quickActionLabel, isDesktop && { fontSize: 13 }]} numberOfLines={1}>{item.label}</Text>
             </TouchableOpacity>
-          ))}
-        </ScrollView>
+          ));
+          return isDesktop ? (
+            <View style={[S.quickActionsDesktop, isRTL && S.rowRev]}>
+              {cards}
+            </View>
+          ) : (
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={[S.quickActionsRow, isRTL && { flexDirection: "row-reverse" }]}>
+              {cards}
+            </ScrollView>
+          );
+        })()}
 
         {loading ? (
           <ActivityIndicator color={C.accent} size="large" style={{ marginTop: 60 }} />
         ) : (<>
 
-          {/* Stats Row 1 — Revenue, Overdue */}
-          <View style={[S.statsRow, isRTL && S.rowRev]}>
+          {/* Stats Grid — 4-col on wide, 2-col otherwise */}
+          <View style={[S.statsGrid, isRTL && S.rowRev, isWide && { gap: 12 }]}>
             <Pressable
-              style={({ hovered }: any) => [S.statCard, { borderTopColor: C.primary }, hovered && S.statCardHover]}
+              style={({ hovered }: any) => [S.statCard, isDesktop && S.statCardDesktop, { borderTopColor: C.primary }, hovered && S.statCardHover, isWide && S.statCardWide]}
               onPress={() => router.push({ pathname: "/performance", params: { tab: "revenue" } })}
               accessibilityRole="button"
               accessibilityLabel={`${t("revenue")}: ${revenue.toLocaleString()} ${t("sar")}`}
             >
-              <Text style={{ fontSize: 18, marginBottom: 2 }}>📈</Text>
-              <Text style={S.statLabel}>{t("revenue")}</Text>
-              <Text style={[S.statVal, { color: C.primary }]}>{revenue.toLocaleString()}</Text>
-              <Text style={S.statSub}>{t("sar")} - {currentMonthName}</Text>
+              <Text style={{ fontSize: isDesktop ? 22 : 18, marginBottom: 2 }}>📈</Text>
+              <Text style={[S.statLabel, isDesktop && { fontSize: 13 }]}>{t("revenue")}</Text>
+              <Text style={[S.statVal, { color: C.primary }, isDesktop && { fontSize: 22 }]}>{revenue.toLocaleString()}</Text>
+              <Text style={[S.statSub, isDesktop && { fontSize: 11 }]}>{t("sar")} - {currentMonthName}</Text>
             </Pressable>
             <Pressable
-              style={({ hovered }: any) => [S.statCard, { borderTopColor: "#F59E0B" }, hovered && S.statCardHover]}
+              style={({ hovered }: any) => [S.statCard, isDesktop && S.statCardDesktop, { borderTopColor: "#F59E0B" }, hovered && S.statCardHover, isWide && S.statCardWide]}
               onPress={() => router.push({ pathname: "/performance", params: { tab: "overdue" } })}
               accessibilityRole="button"
               accessibilityLabel={`${t("overduePayments")}: ${totalOverdue.toLocaleString()} ${t("sar")}`}
             >
-              <Text style={{ fontSize: 18, marginBottom: 2 }}>⚠️</Text>
-              <Text style={S.statLabel}>{t("overduePayments")}</Text>
-              <Text style={[S.statVal, { color: "#F59E0B" }]}>
+              <Text style={{ fontSize: isDesktop ? 22 : 18, marginBottom: 2 }}>⚠️</Text>
+              <Text style={[S.statLabel, isDesktop && { fontSize: 13 }]}>{t("overduePayments")}</Text>
+              <Text style={[S.statVal, { color: "#F59E0B" }, isDesktop && { fontSize: 22 }]}>
                 {totalOverdue.toLocaleString()}
               </Text>
-              <Text style={S.statSub}>
+              <Text style={[S.statSub, isDesktop && { fontSize: 11 }]}>
                 {overdueTenants.length > 0 ? `${overdueTenants.length} ${t("tenantsOverdue")}` : "✅"}
               </Text>
             </Pressable>
-          </View>
-
-          {/* Stats Row 2 — Collected, Expenses */}
-          <View style={[S.statsRow, isRTL && S.rowRev]}>
             <Pressable
-              style={({ hovered }: any) => [S.statCard, { borderTopColor: "#22C55E" }, hovered && S.statCardHover]}
+              style={({ hovered }: any) => [S.statCard, isDesktop && S.statCardDesktop, { borderTopColor: "#22C55E" }, hovered && S.statCardHover, isWide && S.statCardWide]}
               onPress={() => router.push({ pathname: "/performance", params: { tab: "collected" } })}
               accessibilityRole="button"
               accessibilityLabel={`${t("collected")}: ${collected.toLocaleString()} ${t("sar")}, ${collectionPct}%`}
             >
-              <Text style={{ fontSize: 18, marginBottom: 2 }}>💰</Text>
-              <Text style={S.statLabel}>{t("collected")}</Text>
-              <Text style={[S.statVal, { color: "#22C55E" }]}>{collected.toLocaleString()}</Text>
-              <Text style={S.statSub}>{collectionPct}%</Text>
+              <Text style={{ fontSize: isDesktop ? 22 : 18, marginBottom: 2 }}>💰</Text>
+              <Text style={[S.statLabel, isDesktop && { fontSize: 13 }]}>{t("collected")}</Text>
+              <Text style={[S.statVal, { color: "#22C55E" }, isDesktop && { fontSize: 22 }]}>{collected.toLocaleString()}</Text>
+              <Text style={[S.statSub, isDesktop && { fontSize: 11 }]}>{collectionPct}%</Text>
             </Pressable>
             <Pressable
-              style={({ hovered }: any) => [S.statCard, { borderTopColor: "#EF4444" }, hovered && S.statCardHover]}
+              style={({ hovered }: any) => [S.statCard, isDesktop && S.statCardDesktop, { borderTopColor: "#EF4444" }, hovered && S.statCardHover, isWide && S.statCardWide]}
               onPress={() => router.push({ pathname: "/performance", params: { tab: "expenses" } })}
               accessibilityRole="button"
               accessibilityLabel={`${t("totalExpenses")}: ${expenses.toLocaleString()} ${t("sar")}`}
             >
-              <Text style={{ fontSize: 18, marginBottom: 2 }}>🧾</Text>
-              <Text style={S.statLabel}>{t("totalExpenses")}</Text>
-              <Text style={[S.statVal, { color: "#EF4444" }]}>{expenses.toLocaleString()}</Text>
-              <Text style={S.statSub}>{t("sar")} - {currentMonthName}</Text>
+              <Text style={{ fontSize: isDesktop ? 22 : 18, marginBottom: 2 }}>🧾</Text>
+              <Text style={[S.statLabel, isDesktop && { fontSize: 13 }]}>{t("totalExpenses")}</Text>
+              <Text style={[S.statVal, { color: "#EF4444" }, isDesktop && { fontSize: 22 }]}>{expenses.toLocaleString()}</Text>
+              <Text style={[S.statSub, isDesktop && { fontSize: 11 }]}>{t("sar")} - {currentMonthName}</Text>
             </Pressable>
           </View>
 
           {/* Net Income — full width */}
           <View style={[S.statsRow, { marginBottom: 12 }]}>
             <Pressable
-              style={({ hovered }: any) => [S.statCardFull, { borderTopColor: netIncome >= 0 ? C.accent : "#EF4444" }, hovered && S.statCardHover]}
+              style={({ hovered }: any) => [S.statCardFull, isDesktop && S.statCardDesktop, { borderTopColor: netIncome >= 0 ? C.accent : "#EF4444" }, hovered && S.statCardHover]}
               onPress={() => router.push({ pathname: "/performance", params: { tab: "netIncome" } })}
               accessibilityRole="button"
               accessibilityLabel={`${t("netIncome")}: ${netIncome.toLocaleString()} ${t("sar")}`}
             >
-              <Text style={{ fontSize: 20, marginBottom: 4 }}>💵</Text>
-              <Text style={[S.statLabel, { fontSize: 12 }]}>{t("netIncome")}</Text>
-              <Text style={[S.statValLg, { color: netIncome >= 0 ? C.accent : "#EF4444" }]}>{netIncome.toLocaleString()}</Text>
-              <Text style={S.statSub}>{t("sar")} - {currentMonthName}</Text>
+              <Text style={{ fontSize: isDesktop ? 24 : 20, marginBottom: 4 }}>💵</Text>
+              <Text style={[S.statLabel, { fontSize: isDesktop ? 14 : 12 }]}>{t("netIncome")}</Text>
+              <Text style={[S.statValLg, { color: netIncome >= 0 ? C.accent : "#EF4444" }, isDesktop && { fontSize: 28 }]}>{netIncome.toLocaleString()}</Text>
+              <Text style={[S.statSub, isDesktop && { fontSize: 12 }]}>{t("sar")} - {currentMonthName}</Text>
             </Pressable>
           </View>
 
-          {/* Tenants Box */}
-          <TouchableOpacity style={S.tenantsCard} onPress={() => router.push("/tenant-search")} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={`${t("tenantBox")}: ${tenantCounts.total} ${t("total")}, ${tenantCounts.active} ${t("active")}`}>
-            <View style={[S.tenantsTop, isRTL && S.rowRev]}>
-              <View style={[{ flexDirection: "row", alignItems: "center", gap: 8 }, isRTL && S.rowRev]}>
-                <Text style={S.tenantsIcon}>👥</Text>
-                <Text style={S.tenantsTitle}>{t("tenantBox")}</Text>
+          {/* Tenants + Occupancy — side by side on wide */}
+          <View style={isWide ? [S.wideRow, isRTL && S.rowRev] : {}}>
+            {/* Tenants Box */}
+            <TouchableOpacity style={[S.tenantsCard, isWide && { flex: 1, marginHorizontal: 0 }]} onPress={() => router.push("/tenant-search")} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={`${t("tenantBox")}: ${tenantCounts.total} ${t("total")}, ${tenantCounts.active} ${t("active")}`}>
+              <View style={[S.tenantsTop, isRTL && S.rowRev]}>
+                <View style={[{ flexDirection: "row", alignItems: "center", gap: 8 }, isRTL && S.rowRev]}>
+                  <Text style={S.tenantsIcon}>👥</Text>
+                  <Text style={[S.tenantsTitle, isDesktop && { fontSize: 16 }]}>{t("tenantBox")}</Text>
+                </View>
+                <View style={[{ flexDirection: "row", alignItems: "center", gap: 6 }, isRTL && S.rowRev]}>
+                  <Text style={S.tapHint}>{t("tapToSearch")}</Text>
+                  <Text style={[S.tapHint, { fontSize: 16 }]}>›</Text>
+                </View>
               </View>
-              <View style={[{ flexDirection: "row", alignItems: "center", gap: 6 }, isRTL && S.rowRev]}>
-                <Text style={S.tapHint}>{t("tapToSearch")}</Text>
-                <Text style={[S.tapHint, { fontSize: 16 }]}>›</Text>
+              <View style={[S.tenantStats, isRTL && S.rowRev]}>
+                <View style={S.tStat}>
+                  <Text style={[S.tStatVal, isDesktop && { fontSize: 26 }]}>{tenantCounts.total}</Text>
+                  <Text style={[S.tStatLbl, isDesktop && { fontSize: 12 }]}>{t("total")}</Text>
+                </View>
+                <View style={S.tStatDivider} />
+                <View style={S.tStat}>
+                  <Text style={[S.tStatVal, { color: "#22C55E" }, isDesktop && { fontSize: 26 }]}>{tenantCounts.active}</Text>
+                  <Text style={[S.tStatLbl, isDesktop && { fontSize: 12 }]}>{t("active")}</Text>
+                </View>
+                <View style={S.tStatDivider} />
+                <View style={S.tStat}>
+                  <Text style={[S.tStatVal, { color: "#EF4444" }, isDesktop && { fontSize: 26 }]}>{tenantCounts.expired}</Text>
+                  <Text style={[S.tStatLbl, isDesktop && { fontSize: 12 }]}>{t("expired")}</Text>
+                </View>
               </View>
-            </View>
-            <View style={[S.tenantStats, isRTL && S.rowRev]}>
-              <View style={S.tStat}>
-                <Text style={S.tStatVal}>{tenantCounts.total}</Text>
-                <Text style={S.tStatLbl}>{t("total")}</Text>
-              </View>
-              <View style={S.tStatDivider} />
-              <View style={S.tStat}>
-                <Text style={[S.tStatVal, { color: "#22C55E" }]}>{tenantCounts.active}</Text>
-                <Text style={S.tStatLbl}>{t("active")}</Text>
-              </View>
-              <View style={S.tStatDivider} />
-              <View style={S.tStat}>
-                <Text style={[S.tStatVal, { color: "#EF4444" }]}>{tenantCounts.expired}</Text>
-                <Text style={S.tStatLbl}>{t("expired")}</Text>
-              </View>
-            </View>
-          </TouchableOpacity>
+            </TouchableOpacity>
 
-          {/* Occupancy Card */}
-          <TouchableOpacity style={S.occupancyCard} onPress={() => setOccModal(true)} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={`${t("occupancyRate")}: ${occupancyPct}%, ${occupiedUnits}/${totalUnits} ${t("unitsOccupied")}`}>
-            <View style={[S.occupancyTop, isRTL && S.rowRev]}>
-              <Text style={S.occupancyTitle}>{t("occupancyRate")}</Text>
-              <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
-                <Text style={S.occupancyPct}>{occupancyPct}%</Text>
-                <Text style={S.tapHint}>▼</Text>
+            {/* Occupancy Card */}
+            <TouchableOpacity style={[S.occupancyCard, isWide && { flex: 1, marginHorizontal: 0, marginBottom: 12 }]} onPress={() => setOccModal(true)} activeOpacity={0.75} accessibilityRole="button" accessibilityLabel={`${t("occupancyRate")}: ${occupancyPct}%, ${occupiedUnits}/${totalUnits} ${t("unitsOccupied")}`}>
+              <View style={[S.occupancyTop, isRTL && S.rowRev]}>
+                <Text style={[S.occupancyTitle, isDesktop && { fontSize: 16 }]}>{t("occupancyRate")}</Text>
+                <View style={{ flexDirection: "row", alignItems: "center", gap: 6 }}>
+                  <Text style={[S.occupancyPct, isDesktop && { fontSize: 26 }]}>{occupancyPct}%</Text>
+                  <Text style={S.tapHint}>▼</Text>
+                </View>
               </View>
-            </View>
-            <View style={S.progressBg}>
-              <View style={[S.progressFill, { width: `${occupancyPct}%` as any }]} />
-            </View>
-            <View style={[S.occStats, isRTL && S.rowRev]}>
-              <Text style={S.occMeta}>🏢 {propertyOccs.length} {t("properties")}</Text>
-              <Text style={S.occMeta}>🏠 {occupiedUnits}/{totalUnits} {t("unitsOccupied")}</Text>
-            </View>
-          </TouchableOpacity>
+              <View style={[S.progressBg, isDesktop && { height: 10 }]}>
+                <View style={[S.progressFill, { width: `${occupancyPct}%` as any }]} />
+              </View>
+              <View style={[S.occStats, isRTL && S.rowRev]}>
+                <Text style={[S.occMeta, isDesktop && { fontSize: 13 }]}>🏢 {propertyOccs.length} {t("properties")}</Text>
+                <Text style={[S.occMeta, isDesktop && { fontSize: 13 }]}>🏠 {occupiedUnits}/{totalUnits} {t("unitsOccupied")}</Text>
+              </View>
+            </TouchableOpacity>
+          </View>
 
           {/* Lease Expiry Warning */}
           {expiringLeaseCount > 0 && (
@@ -946,22 +952,31 @@ export default function DashboardScreen() {
 
 const styles = (C: any, shadow: any) => StyleSheet.create({
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.lg },
+  headerDesktop: { paddingHorizontal: spacing.xl, paddingVertical: 20 },
   rowRev: { flexDirection: "row-reverse" },
   greeting: { fontSize: 24, fontWeight: "800", color: C.text, letterSpacing: -0.3 },
   subtitle: { fontSize: 13, color: C.textMuted, marginTop: 3 },
   // Quick Actions
   quickActionsRow: { paddingHorizontal: spacing.md, gap: 10, paddingBottom: 4 },
+  quickActionsDesktop: { flexDirection: "row", paddingHorizontal: spacing.md, gap: 12, marginBottom: 12 },
   quickActionCard: { backgroundColor: C.surface, borderRadius: radii.lg, paddingVertical: 12, paddingHorizontal: 16, alignItems: "center", minWidth: 90, ...shadow },
+  quickActionCardDesktop: { flex: 1, paddingVertical: 16, paddingHorizontal: 20, borderRadius: radii.lg, ...(Platform.OS === 'web' ? { cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' } as any : {}) },
   quickActionEmoji: { fontSize: 22, marginBottom: 6 },
   quickActionLabel: { fontSize: 11, fontWeight: "600", color: C.text, textAlign: "center" },
+  // Stats
+  statsGrid: { flexDirection: "row", flexWrap: "wrap", paddingHorizontal: spacing.md, gap: 8, marginBottom: 8 },
   statsRow: { flexDirection: "row", paddingHorizontal: spacing.md, gap: 8, marginBottom: 8 },
-  statCard: { flex: 1, backgroundColor: C.surface, borderRadius: radii.lg, padding: 12, borderTopWidth: 3, alignItems: "center", ...shadow } as any,
+  statCard: { flexBasis: "48%", flexGrow: 1, backgroundColor: C.surface, borderRadius: radii.lg, padding: 12, borderTopWidth: 3, alignItems: "center", ...shadow } as any,
+  statCardDesktop: { padding: 18, borderTopWidth: 4, ...(Platform.OS === 'web' ? { cursor: 'pointer', transition: 'transform 0.15s ease, box-shadow 0.15s ease' } as any : {}) },
+  statCardWide: { flexBasis: "22%", minWidth: 180 },
   statCardHover: Platform.OS === 'web' ? { transform: [{ translateY: -2 }], shadowOffset: { width: 0, height: 6 }, shadowOpacity: 0.15, shadowRadius: 12 } : {},
   statCardFull: { flex: 1, backgroundColor: C.surface, borderRadius: radii.lg, padding: 14, borderTopWidth: 3, alignItems: "center", ...shadow } as any,
   statLabel: { fontSize: 11, color: C.textMuted, marginBottom: 2, textAlign: "center" },
   statVal: { fontSize: 18, fontWeight: "700", textAlign: "center" },
   statValLg: { fontSize: 24, fontWeight: "700", textAlign: "center" },
   statSub: { fontSize: 10, color: C.textMuted, marginTop: 2, textAlign: "center" },
+  // Wide row for side-by-side cards
+  wideRow: { flexDirection: "row", paddingHorizontal: spacing.md, gap: 12, marginBottom: 12 },
   tenantsCard: { backgroundColor: C.surface, borderRadius: radii.lg, marginHorizontal: spacing.md, marginBottom: 12, padding: spacing.md, ...shadow },
   tenantsTop: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", marginBottom: 14 },
   tenantsIcon: { fontSize: 20 },
