@@ -6,6 +6,7 @@
     { "source": "/robots.txt", "destination": "/robots.txt" },
     { "source": "/sitemap.xml", "destination": "/sitemap.xml" },
     { "source": "/og-image.png", "destination": "/og-image.png" },
+    { "source": "/googlee9477a15e54176e6.html", "destination": "/googlee9477a15e54176e6.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ],
   "headers": [
