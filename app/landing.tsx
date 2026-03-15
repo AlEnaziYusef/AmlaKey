@@ -13,6 +13,7 @@ import { router } from "expo-router";
 import { Ionicons } from "@expo/vector-icons";
 import { useLanguage } from "../context/LanguageContext";
 import { useResponsive } from "../components/WebContainer";
+import { useSEO } from "../components/SEOHead";
 
 const isWeb = Platform.OS === "web";
 
@@ -46,6 +47,7 @@ const C = {
 export default function LandingPage() {
   const { t, isRTL, toggle, lang } = useLanguage();
   const { isDesktop } = useResponsive();
+  useSEO({ isAr: lang === "ar" });
 
   return (
     <View style={{ flex: 1, backgroundColor: C.bg }}>

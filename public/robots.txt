@@ -1,0 +1,8 @@
+User-agent: *
+Allow: /
+Disallow: /auth
+Disallow: /reset-password
+Disallow: /personal-info
+Disallow: /paywall
+
+Sitemap: https://amlakeyapp.com/sitemap.xml
