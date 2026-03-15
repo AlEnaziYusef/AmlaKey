@@ -355,32 +355,37 @@ export default function UnitDetailScreen() {
       fetchPayments();
       // Offer to share receipt
       if (tenant) {
-        Alert.alert(
-          "✅",
-          t("paymentRecorded"),
-          [
-            { text: t("cancel"), style: "cancel" },
-            {
-              text: t("shareReceipt"),
-              onPress: () => {
-                const receiptData: ReceiptData = {
-                  receiptNumber: `RCP-${Date.now().toString(36).toUpperCase()}`,
-                  tenantName: tenant.name,
-                  propertyName: propertyName || "",
-                  unitNumber: unitLabel || unitNumber || "",
-                  amount: parseFloat(savedAmount),
-                  paymentDate: savedDate,
-                  monthYear: savedMonthYear,
-                  lang,
-                };
-                generateAndShareReceipt(receiptData).catch(() => {});
+        if (isWeb) {
+          window.alert(t("paymentRecorded") ?? "Payment recorded!");
+        } else {
+          Alert.alert(
+            "✅",
+            t("paymentRecorded"),
+            [
+              { text: t("cancel"), style: "cancel" },
+              {
+                text: t("shareReceipt"),
+                onPress: () => {
+                  const receiptData: ReceiptData = {
+                    receiptNumber: `RCP-${Date.now().toString(36).toUpperCase()}`,
+                    tenantName: tenant.name,
+                    propertyName: propertyName || "",
+                    unitNumber: unitLabel || unitNumber || "",
+                    amount: parseFloat(savedAmount),
+                    paymentDate: savedDate,
+                    monthYear: savedMonthYear,
+                    lang,
+                  };
+                  generateAndShareReceipt(receiptData).catch(() => {});
+                },
               },
-            },
-          ]
-        );
+            ]
+          );
+        }
       }
     } catch (e: any) {
-      Alert.alert(t("error"), e.message);
+      if (isWeb) window.alert(`${t("error")}: ${e.message}`);
+      else Alert.alert(t("error"), e.message);
     } finally {
       setSavingPay(false);
     }
@@ -404,14 +409,21 @@ export default function UnitDetailScreen() {
     const monthYear = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const existing = payments.find((p) => p.month_year === monthYear);
     if (existing) {
-      Alert.alert(
-        "⚠️",
-        t("duplicatePaymentWarning") ?? `A payment for ${monthYear} already exists. Record anyway?`,
-        [
-          { text: t("cancel"), style: "cancel" },
-          { text: t("proceed") ?? "Proceed", onPress: doInsertPayment },
-        ],
-      );
+      if (isWeb) {
+        const proceed = window.confirm(
+          t("duplicatePaymentWarning") ?? `A payment for ${monthYear} already exists. Record anyway?`
+        );
+        if (proceed) doInsertPayment();
+      } else {
+        Alert.alert(
+          "⚠️",
+          t("duplicatePaymentWarning") ?? `A payment for ${monthYear} already exists. Record anyway?`,
+          [
+            { text: t("cancel"), style: "cancel" },
+            { text: t("proceed") ?? "Proceed", onPress: doInsertPayment },
+          ],
+        );
+      }
       return;
     }
     doInsertPayment();
@@ -419,25 +431,31 @@ export default function UnitDetailScreen() {
 
   // ── End Lease ────────────────────────────────────────────────
   const handleEndLease = () => {
-    Alert.alert(
-      t("endLease"),
-      `${t("endLease")} ${tenant?.name}?`,
-      [
-        { text: t("cancel"), style: "cancel" },
-        { text: t("endLease"), style: "destructive", onPress: async () => {
-          setEndingLease(true);
-          try {
-            const { error } = await supabase.from("tenants").update({ status: "expired" }).eq("id", tenantId);
-            if (error) throw error;
-            fetchTenant();
-          } catch (e: any) {
-            Alert.alert(t("error"), e.message);
-          } finally {
-            setEndingLease(false);
-          }
-        }},
-      ]
-    );
+    const doEnd = async () => {
+      setEndingLease(true);
+      try {
+        const { error } = await supabase.from("tenants").update({ status: "expired" }).eq("id", tenantId);
+        if (error) throw error;
+        fetchTenant();
+      } catch (e: any) {
+        if (isWeb) window.alert(e.message);
+        else Alert.alert(t("error"), e.message);
+      } finally {
+        setEndingLease(false);
+      }
+    };
+    if (isWeb) {
+      if (window.confirm(`${t("endLease")} ${tenant?.name}?`)) doEnd();
+    } else {
+      Alert.alert(
+        t("endLease"),
+        `${t("endLease")} ${tenant?.name}?`,
+        [
+          { text: t("cancel"), style: "cancel" },
+          { text: t("endLease"), style: "destructive", onPress: doEnd },
+        ]
+      );
+    }
   };
 
   // ── Renew Lease ────────────────────────────────────────────
