@@ -216,11 +216,18 @@ function useWebCSS() {
       ::-webkit-scrollbar-track { background: transparent; }
       ::-webkit-scrollbar-thumb { background: ${colors.border}; border-radius: 4px; }
       ::-webkit-scrollbar-thumb:hover { background: ${colors.textMuted}; }
-      [role="button"]:hover, button:hover { opacity: 0.88; transition: opacity 0.15s ease; }
+      [role="button"]:hover, button:hover { opacity: 0.92; transition: opacity 0.15s ease; }
       [role="button"] { transition: transform 0.15s ease, box-shadow 0.15s ease, opacity 0.15s ease; }
-      input:focus, textarea:focus { border-color: #0EA5E9 !important; }
-      /* Modal backdrop blur */
-      [aria-modal="true"] > div:first-child { backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px); }
+      input, textarea { transition: border-color 0.2s ease, box-shadow 0.2s ease; }
+      input:focus, textarea:focus { border-color: #0EA5E9 !important; box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.12) !important; }
+      /* Smooth modal transitions */
+      [aria-modal="true"] > div { transition: opacity 0.2s ease; }
+      /* Better scrollbar for modal content */
+      [aria-modal="true"] ::-webkit-scrollbar { width: 5px; }
+      [aria-modal="true"] ::-webkit-scrollbar-thumb { background: rgba(148,163,184,0.3); border-radius: 3px; }
+      /* Modal backdrop blur + ensure modals are above fixed sidebar */
+      [aria-modal="true"] { z-index: 10000 !important; }
+      [aria-modal="true"] > div:first-child { backdrop-filter: blur(6px); -webkit-backdrop-filter: blur(6px); }
       /* Sidebar content offset — target the absolute-positioned screen child of scene container */
       :root { --sidebar-w: 240px; }
       @media (min-width: 768px) {

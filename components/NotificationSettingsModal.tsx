@@ -245,6 +245,6 @@ const styles = (C: any, shadow: any) =>
       alignItems: "center", marginTop: spacing.md,
     },
     saveBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
-    webOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center" },
-    webModalBox: { maxWidth: 560, width: "100%", maxHeight: "80%", backgroundColor: C.background, borderRadius: 24, overflow: "hidden" },
+    webOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", alignItems: "center", paddingHorizontal: 16 },
+    webModalBox: { maxWidth: 520, width: "100%", maxHeight: "85%" as any, backgroundColor: C.background, borderRadius: 20, overflow: "hidden" },
   });

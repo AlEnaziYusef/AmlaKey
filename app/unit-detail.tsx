@@ -27,6 +27,7 @@ import { spacing, radii } from "../constants/theme";
 import { formatDualDate } from "../lib/dateUtils";
 import { generateAndShareReceipt, ReceiptData } from "../lib/receiptGenerator";
 import { userKey, HIJRI_KEY, EJAR_IMPORT_KEY } from "../lib/storage";
+import WebContainer from "../components/WebContainer";
 
 type Tenant = {
   id: string;
@@ -873,6 +874,7 @@ export default function UnitDetailScreen() {
 
   return (
     <View style={S.container}>
+      <WebContainer maxWidth={800}>
       {/* Header */}
       <View style={[S.header, { paddingTop: insets.top + 10 }, isRTL && S.headerRTL]}>
         <TouchableOpacity onPress={() => router.back()} style={S.backBtn}>
@@ -887,6 +889,7 @@ export default function UnitDetailScreen() {
       </View>
 
       {isVacant ? renderVacant() : renderOccupied()}
+      </WebContainer>
 
       {/* ── Edit Payment Modal ── */}
       <Modal
@@ -1585,8 +1588,8 @@ const styles = (C: any, shadow: any) =>
 
     card: {
       backgroundColor: C.surface,
-      borderRadius: radii.md,
-      padding: 16,
+      borderRadius: radii.lg,
+      padding: 18,
       marginBottom: 14,
       borderWidth: 1,
       borderColor: C.border,
@@ -1667,11 +1670,12 @@ const styles = (C: any, shadow: any) =>
     // Modal
     modalOverlay: {
       flex: 1,
-      backgroundColor: "rgba(0,0,0,0.55)",
+      backgroundColor: "rgba(0,0,0,0.5)",
       justifyContent: "flex-end",
+      ...(Platform.OS === "web" ? { justifyContent: "center", alignItems: "center", paddingHorizontal: 16 } : {}),
     },
     // Choice modal
-    choiceBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 30 },
+    choiceBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 30, ...(Platform.OS === "web" ? { borderRadius: 20, maxWidth: 480, width: "100%", alignSelf: "center" } : {}) },
     choiceTitle: { fontSize: 20, fontWeight: "700", color: C.text, textAlign: "center", marginBottom: 20 },
     choiceOption: { flexDirection: "row", alignItems: "center", backgroundColor: C.background, borderRadius: radii.lg, padding: 16, marginBottom: 10, borderWidth: 1.5, borderColor: C.border, gap: 14 },
     choiceOptionEjar: { borderColor: "#25935f60", backgroundColor: "#25935f08" },
@@ -1686,12 +1690,14 @@ const styles = (C: any, shadow: any) =>
       padding: spacing.lg,
       paddingBottom: Platform.OS === "ios" ? 40 : spacing.lg,
       maxHeight: "92%",
+      ...(Platform.OS === "web" ? { borderRadius: 20, maxWidth: 520, width: "100%", maxHeight: "85%" as any, paddingBottom: spacing.lg } : {}),
     },
     modalTitle: {
       fontSize: 18,
       fontWeight: "700",
       color: C.text,
       marginBottom: 20,
+      ...(Platform.OS === "web" ? { fontSize: 20, textAlign: "center" } : {}),
     },
     fieldLabel: {
       fontSize: 13,
@@ -1701,11 +1707,11 @@ const styles = (C: any, shadow: any) =>
     },
     input: {
       backgroundColor: C.surfaceElevated,
-      borderRadius: radii.sm,
+      borderRadius: radii.md,
       borderWidth: 1,
       borderColor: C.border,
       paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingVertical: 13,
       color: C.text,
       fontSize: 15,
     },
@@ -1740,18 +1746,20 @@ const styles = (C: any, shadow: any) =>
       flex: 1,
       borderWidth: 1,
       borderColor: C.border,
-      borderRadius: radii.sm,
-      paddingVertical: 13,
+      borderRadius: radii.md,
+      paddingVertical: 14,
       alignItems: "center",
+      ...(Platform.OS === "web" ? { cursor: "pointer" } as any : {}),
     },
-    cancelBtnText: { color: C.textMuted, fontWeight: "600" },
+    cancelBtnText: { color: C.textMuted, fontWeight: "600", fontSize: 15 },
     saveBtn: {
       flex: 1,
       backgroundColor: C.primary,
-      borderRadius: radii.sm,
-      paddingVertical: 13,
+      borderRadius: radii.md,
+      paddingVertical: 14,
       alignItems: "center",
+      ...(Platform.OS === "web" ? { cursor: "pointer" } as any : {}),
     },
     saveBtnDisabled: { opacity: 0.6 },
-    saveBtnText: { color: "#fff", fontWeight: "700" },
+    saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   });

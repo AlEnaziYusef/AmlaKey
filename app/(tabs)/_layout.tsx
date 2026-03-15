@@ -159,20 +159,20 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
 
 const sidebarStyles = StyleSheet.create({
   container: {
-    paddingTop: 20,
-    paddingBottom: 16,
+    paddingTop: 24,
+    paddingBottom: 20,
   },
   logoRow: {
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    marginBottom: 12,
+    paddingVertical: 18,
+    marginBottom: 16,
   },
   logo: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 38,
+    height: 38,
+    borderRadius: 10,
     marginRight: 10,
   },
   logoText: {
@@ -183,13 +183,14 @@ const sidebarStyles = StyleSheet.create({
   nav: {
     flex: 1,
     paddingHorizontal: 12,
+    gap: 2,
   },
   navItem: {
     alignItems: "center",
-    paddingVertical: 11,
+    paddingVertical: 12,
     paddingHorizontal: 14,
     borderRadius: 10,
-    marginBottom: 4,
+    marginBottom: 2,
     position: "relative",
   },
   activeBar: {
@@ -201,10 +202,11 @@ const sidebarStyles = StyleSheet.create({
   },
   navLabel: {
     fontSize: 14,
+    fontWeight: "500",
   },
   themeToggle: {
     alignItems: "center",
-    paddingVertical: 11,
+    paddingVertical: 12,
     paddingHorizontal: 14,
     marginHorizontal: 12,
     borderRadius: 10,
@@ -258,6 +260,7 @@ function CustomTabBar(props: any) {
             zIndex: 100,
             [isRTL ? "right" : "left"]: 0,
             transition: "width 0.2s ease",
+            boxShadow: "2px 0 8px rgba(0,0,0,0.04)",
           } as any),
         ]}
       >

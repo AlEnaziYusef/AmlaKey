@@ -808,16 +808,16 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   chipTextVacant: { color: C.textMuted },
   chevron: { fontSize: 18, color: C.textMuted },
   // Modal
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "center", paddingHorizontal: spacing.lg },
-  modalBox: { backgroundColor: C.surface, borderRadius: radii.lg, padding: spacing.lg, ...shadow },
+  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "center", paddingHorizontal: spacing.lg, ...(Platform.OS === "web" ? { alignItems: "center" } : {}) },
+  modalBox: { backgroundColor: C.surface, borderRadius: radii.lg, padding: spacing.lg, ...shadow, ...(Platform.OS === "web" ? { maxWidth: 480, width: "100%" } : {}) },
   modalTitle: { fontSize: 16, fontWeight: "700", color: C.text, marginBottom: 16 },
   labelInput: { backgroundColor: C.surfaceElevated, borderRadius: radii.sm, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, paddingVertical: 12, color: C.text, fontSize: 15, marginBottom: 8 },
   labelHint: { fontSize: 12, color: C.textMuted, marginBottom: 20 },
   modalActions: { flexDirection: "row", gap: 12 },
-  cancelBtn: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: radii.sm, paddingVertical: 13, alignItems: "center" },
-  cancelBtnText: { color: C.textMuted, fontWeight: "600" },
-  saveBtn: { flex: 1, backgroundColor: C.primary, borderRadius: radii.sm, paddingVertical: 13, alignItems: "center" },
-  saveBtnText: { color: "#fff", fontWeight: "700" },
+  cancelBtn: { flex: 1, borderWidth: 1, borderColor: C.border, borderRadius: radii.md, paddingVertical: 14, alignItems: "center" },
+  cancelBtnText: { color: C.textMuted, fontWeight: "600", fontSize: 15 },
+  saveBtn: { flex: 1, backgroundColor: C.primary, borderRadius: radii.md, paddingVertical: 14, alignItems: "center" },
+  saveBtnText: { color: "#fff", fontWeight: "700", fontSize: 15 },
   // Edit Property button in header
   editPropBtn: { width: 30, height: 30, borderRadius: 15, backgroundColor: C.surfaceElevated, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: C.border },
   editPropBtnText: { fontSize: 14 },
@@ -846,8 +846,8 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   bulkPreviewName: { flex: 1, fontSize: 14, fontWeight: "600", color: C.text, marginHorizontal: 4 },
   bulkPreviewAmount: { fontSize: 13, fontWeight: "600", color: C.accent },
   // Edit Property modal
-  editModalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", justifyContent: "flex-end" },
-  editModalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40 },
+  editModalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.5)", justifyContent: "flex-end", ...(Platform.OS === "web" ? { justifyContent: "center", alignItems: "center", paddingHorizontal: 16 } : {}) },
+  editModalBox: { backgroundColor: C.surface, borderTopLeftRadius: 24, borderTopRightRadius: 24, padding: spacing.lg, paddingBottom: 40, ...(Platform.OS === "web" ? { borderRadius: 20, maxWidth: 560, width: "100%", paddingBottom: spacing.lg } : {}) },
   editFieldLabel: { fontSize: 12, color: C.textMuted, marginBottom: 6, marginTop: 14 },
   editInput: { backgroundColor: C.surfaceElevated, borderRadius: radii.sm, borderWidth: 1, borderColor: C.border, paddingHorizontal: 14, paddingVertical: 12, color: C.text, fontSize: 15 },
   pickerConfirm: {
