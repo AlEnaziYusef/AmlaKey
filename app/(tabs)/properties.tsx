@@ -302,13 +302,16 @@ export default function PropertiesScreen() {
   const totalUnits = properties.reduce((s, p) => s + p.total_units, 0);
   const totalIncome = properties.reduce((s, p) => s + p.monthly_income, 0);
 
+  const Wrapper = isWeb ? View : TouchableWithoutFeedback;
+  const wrapperProps = isWeb ? { style: { flex: 1 } } : { onPress: Keyboard.dismiss, accessible: false };
+
   return (
-    <TouchableWithoutFeedback onPress={Keyboard.dismiss} accessible={false}>
+    <Wrapper {...wrapperProps}>
       <View style={S.container}>
         <WebContainer maxWidth={1200}>
         <View style={[S.header, { paddingTop: insets.top + 10 }, isRTL && S.rowRev]}>
           <Text style={S.headerTitle}>{t("properties")}</Text>
-          <TouchableOpacity style={S.addBtn} onPress={() => { if (!canAddProperty(properties.length)) { Alert.alert(t("propertyLimitTitle"), t("propertyLimitMsg"), [{ text: t("upgrade"), onPress: () => router.push("/paywall" as any) }, { text: t("later"), style: "cancel" }]); return; } const f = { ...EMPTY_FORM, city: defaultCity }; setForm(f); setAddPropErrors({}); setAddVisible(true); detectCityFromLocation(setForm); }} accessibilityRole="button" accessibilityLabel={t("addProperty")}>
+          <TouchableOpacity style={S.addBtn} onPress={() => { if (!canAddProperty(properties.length)) { Alert.alert(t("propertyLimitTitle"), t("propertyLimitMsg"), [{ text: t("upgrade"), onPress: () => router.push("/paywall" as any) }, { text: t("later"), style: "cancel" }]); return; } const f = { ...EMPTY_FORM, city: defaultCity }; setForm(f); setAddPropErrors({}); setAddVisible(true); if (!isWeb) { detectCityFromLocation(setForm); } }} accessibilityRole="button" accessibilityLabel={t("addProperty")}>
             <Text style={S.addBtnText}>+ {t("add")}</Text>
           </TouchableOpacity>
         </View>
@@ -660,7 +663,7 @@ export default function PropertiesScreen() {
           </View>
         </Modal>
       </View>
-    </TouchableWithoutFeedback>
+    </Wrapper>
   );
 }
 

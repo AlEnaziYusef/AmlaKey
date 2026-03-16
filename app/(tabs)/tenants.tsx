@@ -517,8 +517,11 @@ true;
   const filtered = filter === "all" ? tenants : tenants.filter((t) => t.status === filter);
   const activeCount = tenants.filter((t) => t.status === "active").length;
 
+  const Wrapper = isWeb ? View : TouchableWithoutFeedback;
+  const wrapperProps = isWeb ? { style: { flex: 1 } } : { onPress: dismissAll, accessible: false };
+
   return (
-    <TouchableWithoutFeedback onPress={dismissAll} accessible={false}>
+    <Wrapper {...wrapperProps}>
       <View style={S.container}>
         <WebContainer maxWidth={1000}>
         <View style={[S.header, { paddingTop: insets.top + 10 }, isRTL && S.rowRev]}>
@@ -1158,7 +1161,7 @@ true;
           />
         )}
       </View>
-    </TouchableWithoutFeedback>
+    </Wrapper>
   );
 }
 
