@@ -347,7 +347,12 @@ export default function UnitDetailScreen() {
           month_year: monthYear,
         },
       ]);
-      if (error) throw error;
+      if (error) {
+        if (isWeb) window.alert(`${t("error")}: ${error.message}`);
+        else showAlert(t("error"), error.message);
+        setSavingPay(false);
+        return;
+      }
       // Fire instant payment notification
       if (notifSettings.paymentConfirmationEnabled && tenant) {
         addNotification({
