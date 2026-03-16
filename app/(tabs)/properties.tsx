@@ -306,15 +306,11 @@ export default function PropertiesScreen() {
         { text: t("cancel"), style: "cancel" },
         {
           text: t("delete"), style: "destructive", onPress: async () => {
-            // Cascade: expire tenants, delete their payments, delete expenses
-            const { data: propTenants } = await supabase
-              .from("tenants").select("id").eq("property_id", p.id);
-            const tenantIds = (propTenants ?? []).map((t: any) => t.id);
-            if (tenantIds.length > 0) {
-              await supabase.from("payments").delete().in("tenant_id", tenantIds);
-              await supabase.from("tenants").delete().in("id", tenantIds);
-            }
-            await supabase.from("expenses").delete().eq("property_id", p.id);
+            // Set tenants to expired instead of deleting them
+            await supabase
+              .from("tenants")
+              .update({ status: "expired" })
+              .eq("property_id", p.id);
             const { error } = await supabase.from("properties").delete().eq("id", p.id);
             if (error) xAlert(t("error"), error.message);
             else fetchProperties();
