@@ -791,7 +791,7 @@ export default function PropertyUnitsScreen() {
                   </View>
                 </View>
 
-                {/* Monthly Income */}
+                {/* Annual Expected Income */}
                 <Text style={S.editFieldLabel}>{t("monthlyIncome2")}</Text>
                 <TextInput
                   style={S.editInput}

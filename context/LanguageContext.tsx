@@ -14,7 +14,7 @@ const translations = {
     hereIsYourOverview: "Here is your portfolio overview",
     // Dashboard
     revenue: "Revenue", collected: "Collected", totalExpenses: "Expenses", netIncome: "Net Income",
-    monthlyIncome: "Monthly Income", occupancyRate: "Occupancy Rate",
+    monthlyIncome: "Annual Expected Income", occupancyRate: "Occupancy Rate",
     recentUpdates: "Recent Updates", noUpdates: "No recent activity",
     pending: "Pending", thisMonth: "This Month", portfolio: "PORTFOLIO", collectedOf: "collected of",
     occupancyDetails: "Occupancy by Property", close: "Close",
@@ -79,7 +79,7 @@ const translations = {
     failedToLoadData: "Failed to load data. Please try again.",
     nameRequired: "Name is required", amountRequired: "Amount is required",
     add2: "Add", perMonth: "/mo", unitsOccupied: "units occupied",
-    back: "Back", monthlyIncome2: "Monthly Income (SAR)", floorCount: "No. of Floors",
+    back: "Back", monthlyIncome2: "Annual Expected Income (SAR)", floorCount: "No. of Floors",
     recentTenants: "Recent Tenants",
     // Recent updates page
     allUpdates: "All Updates", collections: "Collections",
@@ -567,7 +567,7 @@ const translations = {
     hereIsYourOverview: "إليك نظرة عامة على محفظتك",
     // Dashboard
     revenue: "الإيجارات المتوقعة", collected: "المحصّل", totalExpenses: "المصاريف", netIncome: "صافي الدخل",
-    monthlyIncome: "الدخل الشهري", occupancyRate: "نسبة الإشغال",
+    monthlyIncome: "الدخل السنوي المتوقع", occupancyRate: "نسبة الإشغال",
     recentUpdates: "آخر التحديثات", noUpdates: "لا يوجد نشاط حديث",
     pending: "قيد الانتظار", thisMonth: "هذا الشهر", portfolio: "محفظتي", collectedOf: "محصّل من",
     occupancyDetails: "الإشغال حسب العقار", close: "إغلاق",
@@ -632,7 +632,7 @@ const translations = {
     failedToLoadData: "فشل تحميل البيانات. يرجى المحاولة مرة أخرى.",
     nameRequired: "الاسم مطلوب", amountRequired: "المبلغ مطلوب",
     add2: "إضافة", perMonth: "/شهر", unitsOccupied: "وحدة مؤجرة",
-    back: "رجوع", monthlyIncome2: "الدخل الشهري (ريال)", floorCount: "عدد الأدوار",
+    back: "رجوع", monthlyIncome2: "الدخل السنوي المتوقع (ريال)", floorCount: "عدد الأدوار",
     recentTenants: "آخر المستأجرين",
     // Recent updates page
     allUpdates: "كل التحديثات", collections: "التحصيلات",
