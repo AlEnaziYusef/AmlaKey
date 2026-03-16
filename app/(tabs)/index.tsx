@@ -153,19 +153,19 @@ export default function DashboardScreen() {
       { data: recentTenants }, { data: recentPayments }, { data: recentExpenses },
     ] = await Promise.all([
       supabase.from("properties").select("id, name, total_units"),
-      supabase.from("tenants").select("id, name, unit_number, property_id, monthly_rent, lease_start, lease_end, phone, properties(name)").eq("status", "active"),
-      supabase.from("tenants").select("id, status"),
-      supabase.from("expenses").select("amount, date").gte("date", `${thisMonth}-01`).lte("date", `${thisMonth}-31`),
-      supabase.from("payments").select("amount").eq("month_year", thisMonth),
-      supabase.from("payments").select("tenant_id, amount").eq("month_year", thisMonth),
+      supabase.from("tenants").select("id, name, unit_number, property_id, monthly_rent, lease_start, lease_end, phone, properties!inner(name)").eq("status", "active"),
+      supabase.from("tenants").select("id, status, properties!inner(id)"),
+      supabase.from("expenses").select("amount, date, properties!inner(id)").gte("date", `${thisMonth}-01`).lte("date", `${thisMonth}-31`),
+      supabase.from("payments").select("amount, tenants!inner(properties!inner(id))").eq("month_year", thisMonth),
+      supabase.from("payments").select("tenant_id, amount, tenants!inner(properties!inner(id))").eq("month_year", thisMonth),
       supabase.from("tenants")
-        .select("id, name, unit_number, monthly_rent, created_at, properties(id, name)")
+        .select("id, name, unit_number, monthly_rent, created_at, properties!inner(id, name)")
         .order("created_at", { ascending: false }).limit(3),
       supabase.from("payments")
-        .select("id, amount, created_at, tenants(name, unit_number, properties(name))")
+        .select("id, amount, created_at, tenants!inner(name, unit_number, properties!inner(name))")
         .order("created_at", { ascending: false }).limit(3),
       supabase.from("expenses")
-        .select("id, category, amount, description, created_at, properties(id, name)")
+        .select("id, category, amount, description, created_at, properties!inner(id, name)")
         .order("created_at", { ascending: false }).limit(3),
     ]);
 
