@@ -897,12 +897,11 @@ export default function DashboardScreen() {
                       const hasPhone = !!item.phone;
                       const selected = broadcastSelected === item.id;
                       return (
-                        <TouchableOpacity
+                        <Pressable
                           style={[S.bcTenantRow, !hasPhone && { opacity: 0.45 }, selected && { backgroundColor: C.accentSoft, borderColor: C.accent }, isRTL && S.rowRev]}
-                          activeOpacity={hasPhone ? 0.7 : 1}
                           onPress={() => {
                             if (!hasPhone) return;
-                            setBroadcastSelected(selected ? null : item.id);
+                            setBroadcastSelected(item.id);
                           }}
                         >
                           {/* Radio */}
@@ -920,7 +919,7 @@ export default function DashboardScreen() {
                             {item.isExpiring && <View style={[S.bcTag, { backgroundColor: "#FEF3C7" }]}><Text style={{ fontSize: 10, color: "#D97706", fontWeight: "700" }}>{t("filterExpiring")}</Text></View>}
                             {!hasPhone && <Text style={{ fontSize: 10, color: C.textMuted }}>{t("noPhoneNumber")}</Text>}
                           </View>
-                        </TouchableOpacity>
+                        </Pressable>
                       );
                     }}
                     ListEmptyComponent={<Text style={S.emptyText}>{t("noTenantsShort")}</Text>}
