@@ -929,7 +929,7 @@ export default function UnitDetailScreen() {
           <TouchableOpacity style={modalBackdropStyle} activeOpacity={1} onPress={() => { dismissAll(); setEditPayModal(false); }} />
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={S.modalSheet}
+            style={[S.modalSheet, ...(Platform.OS === 'web' ? [{ zIndex: 1, position: 'relative' as any }] : [])]}
           >
             <Text style={S.modalTitle}>
               ✏️ {t("editPayment")}
@@ -1019,7 +1019,7 @@ export default function UnitDetailScreen() {
           <TouchableOpacity style={modalBackdropStyle} activeOpacity={1} onPress={() => { dismissAll(); setShowRenewModal(false); }} />
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={S.modalSheet}
+            style={[S.modalSheet, ...(Platform.OS === 'web' ? [{ zIndex: 1, position: 'relative' as any }] : [])]}
           >
             <Text style={S.modalTitle}>{t("renewLease")}</Text>
             <Text style={{ fontSize: 13, color: C.textMuted, marginBottom: 16, textAlign: isRTL ? "right" : "left" }}>
@@ -1102,7 +1102,7 @@ export default function UnitDetailScreen() {
       <Modal visible={addChoiceVisible} animationType="fade" transparent onRequestClose={() => setAddChoiceVisible(false)}>
         <View style={S.modalOverlay}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => setAddChoiceVisible(false)} />
-            <View style={S.choiceBox}>
+            <View style={[S.choiceBox, ...(Platform.OS === 'web' ? [{ zIndex: 1, position: 'relative' as any }] : [])]}>
               <Text style={S.choiceTitle}>{t("addTenantToUnit")}</Text>
               <TouchableOpacity
                 style={S.choiceOption}
@@ -1155,7 +1155,7 @@ export default function UnitDetailScreen() {
           <TouchableOpacity style={modalBackdropStyle} activeOpacity={1} onPress={() => { dismissAll(); setShowAddModal(false); }} />
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={S.modalSheet}
+            style={[S.modalSheet, ...(Platform.OS === 'web' ? [{ zIndex: 1, position: 'relative' as any }] : [])]}
           >
             <ScrollView
               ref={addTenantScrollRef}
@@ -1349,7 +1349,7 @@ export default function UnitDetailScreen() {
           <TouchableOpacity style={modalBackdropStyle} activeOpacity={1} onPress={() => { dismissAll(); setShowPayModal(false); }} />
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={S.modalSheet}
+            style={[S.modalSheet, ...(Platform.OS === 'web' ? [{ zIndex: 1, position: 'relative' as any }] : [])]}
           >
             <Text style={S.modalTitle}>
               {t("collectPayment")}
@@ -1450,7 +1450,7 @@ export default function UnitDetailScreen() {
           <TouchableOpacity style={modalBackdropStyle} activeOpacity={1} onPress={() => { dismissAll(); setShowEditTenantModal(false); }} />
           <KeyboardAvoidingView
             behavior={Platform.OS === "ios" ? "padding" : undefined}
-            style={S.modalSheet}
+            style={[S.modalSheet, ...(Platform.OS === 'web' ? [{ zIndex: 1, position: 'relative' as any }] : [])]}
           >
             <ScrollView
               showsVerticalScrollIndicator={false}

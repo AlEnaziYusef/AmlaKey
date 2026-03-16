@@ -432,7 +432,7 @@ export default function PropertiesScreen() {
         <Modal visible={addVisible} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setAddVisible(false)}>
           <View style={S.modalOverlay}>
             <TouchableOpacity style={modalBackdropStyle} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setAddVisible(false); }} />
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%", ...(Platform.OS === 'web' ? { zIndex: 1, position: 'relative' as any } : {}) }}>
               <ScrollView keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={true}>
                 <View style={S.modalBox}>
                   <Text style={S.modalTitle}>{t("addProperty")}</Text>
@@ -548,7 +548,7 @@ export default function PropertiesScreen() {
         <Modal visible={editVisible} animationType={Platform.OS === 'web' ? 'fade' : 'slide'} transparent onRequestClose={() => setEditVisible(false)}>
           <View style={S.modalOverlay}>
             <TouchableOpacity style={modalBackdropStyle} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setEditVisible(false); }} />
-            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
+            <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%", ...(Platform.OS === 'web' ? { zIndex: 1, position: 'relative' as any } : {}) }}>
               <ScrollView keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={true}>
                 <View style={S.modalBox}>
                   <Text style={S.modalTitle}>{t("edit") ?? "Edit Property"}</Text>

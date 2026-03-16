@@ -552,7 +552,7 @@ export default function PropertyUnitsScreen() {
       <Modal visible={bulkPayModal} animationType={isWeb ? "fade" : "slide"} transparent onRequestClose={() => setBulkPayModal(false)}>
         <View style={S.editModalOverlay}>
           <TouchableOpacity style={modalBackdropStyle} activeOpacity={1} onPress={() => setBulkPayModal(false)} />
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ ...(Platform.OS === 'web' ? { zIndex: 1, position: 'relative' as any } : {}) }}>
             <ScrollView bounces={false} keyboardShouldPersistTaps="handled" style={{ maxHeight: "100%" }}>
             <View style={S.editModalBox}>
               <Text style={S.modalTitle}>{t("collectPaymentTitle")}</Text>
@@ -644,7 +644,7 @@ export default function PropertyUnitsScreen() {
       <Modal visible={editUnit !== null} animationType="fade" transparent onRequestClose={() => setEditUnit(null)}>
         <KeyboardAvoidingView style={S.modalOverlay} behavior={Platform.OS === "ios" ? "padding" : undefined}>
           <TouchableOpacity style={StyleSheet.absoluteFill} activeOpacity={1} onPress={() => { Keyboard.dismiss(); setEditUnit(null); }} />
-          <View style={S.modalBox}>
+          <View style={[S.modalBox, ...(Platform.OS === 'web' ? [{ zIndex: 1, position: 'relative' as any }] : [])]}>
             <Text style={S.modalTitle}>{t("unit")} {editUnit} — {t("editLabel")}</Text>
             <TextInput
               style={S.labelInput}
@@ -677,7 +677,7 @@ export default function PropertyUnitsScreen() {
       <Modal visible={editModal} animationType={isWeb ? "fade" : "slide"} transparent onRequestClose={() => setEditModal(false)}>
         <View style={S.editModalOverlay}>
           <TouchableOpacity style={modalBackdropStyle} activeOpacity={1} onPress={() => { dismissAll(); setEditModal(false); }} />
-          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%" }}>
+          <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={{ maxHeight: "90%", ...(Platform.OS === 'web' ? { zIndex: 1, position: 'relative' as any } : {}) }}>
             <ScrollView keyboardShouldPersistTaps="handled" bounces={false} showsVerticalScrollIndicator={true}>
               <View style={S.editModalBox}>
                 <Text style={S.modalTitle}>{t("editProperty")}</Text>
