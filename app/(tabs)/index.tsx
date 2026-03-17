@@ -154,7 +154,7 @@ export default function DashboardScreen() {
     ] = await Promise.all([
       supabase.from("properties").select("id, name, total_units"),
       supabase.from("tenants").select("id, name, unit_number, property_id, monthly_rent, lease_start, lease_end, payment_frequency, phone, properties!inner(name)").eq("status", "active"),
-      supabase.from("tenants").select("id, status, properties!inner(id)"),
+      supabase.from("tenants").select("id, status"),
       supabase.from("expenses").select("amount, date, properties!inner(id)").gte("date", `${thisMonth}-01`).lte("date", `${thisMonth}-31`),
       supabase.from("payments").select("tenant_id, amount, tenants!inner(properties!inner(id))").eq("month_year", thisMonth),
       supabase.from("tenants")
