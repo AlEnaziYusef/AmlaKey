@@ -90,7 +90,7 @@ export default function UnitDetailScreen() {
   const { addNotification, settings: notifSettings } = useNotification();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const S = useMemo(() => styles(C, shadow), [C, shadow]);
+  const S = useMemo(() => styles(C, shadow, isRTL), [C, shadow, isRTL]);
 
   // Hijri calendar preference
   const [showHijri, setShowHijri] = useState(false);
@@ -868,7 +868,7 @@ export default function UnitDetailScreen() {
                     </View>
                     <Text style={S.payAmount}>{formatCurrency(p.amount)}</Text>
                     <TouchableOpacity
-                      style={{ marginLeft: 8, padding: 6, backgroundColor: C.primary + "15", borderRadius: 8 }}
+                      style={{ marginLeft: isRTL ? 0 : 8, marginRight: isRTL ? 8 : 0, padding: 6, backgroundColor: C.primary + "15", borderRadius: 8 }}
                       onPress={() => {
                         if (!tenant) return;
                         const receiptData: ReceiptData = {
@@ -1656,7 +1656,7 @@ export default function UnitDetailScreen() {
   );
 }
 
-const styles = (C: any, shadow: any) =>
+const styles = (C: any, shadow: any, isRTL: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
 
@@ -1677,7 +1677,8 @@ const styles = (C: any, shadow: any) =>
       backgroundColor: C.surfaceElevated,
       alignItems: "center",
       justifyContent: "center",
-      marginRight: 12,
+      marginRight: isRTL ? 0 : 12,
+      marginLeft: isRTL ? 12 : 0,
     },
     backArrow: { fontSize: 22, color: C.primary, fontWeight: "700" },
     headerTextWrap: { flex: 1 },

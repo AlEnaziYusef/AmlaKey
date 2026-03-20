@@ -63,7 +63,7 @@ export default function PropertyUnitsScreen() {
   const { colors: C, shadow, isDark } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const S = useMemo(() => styles(C, shadow), [C, shadow]);
+  const S = useMemo(() => styles(C, shadow, isRTL), [C, shadow, isRTL]);
 
   const totalUnits = parseInt(total_units ?? "0", 10);
   const [tenantMap, setTenantMap] = useState<TenantMap>({});
@@ -838,7 +838,7 @@ export default function PropertyUnitsScreen() {
   );
 }
 
-const styles = (C: any, shadow: any) => StyleSheet.create({
+const styles = (C: any, shadow: any, isRTL: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: { paddingBottom: 16, paddingHorizontal: spacing.md, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border },
   headerRow: { flexDirection: "row", alignItems: "center", gap: 10 },
@@ -859,7 +859,7 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   scrollContent: { paddingHorizontal: spacing.md, paddingTop: 8 },
   unitCard: { flexDirection: "row", alignItems: "center", backgroundColor: C.surface, borderRadius: radii.md, paddingVertical: 14, paddingHorizontal: 16, marginBottom: 10, borderWidth: 1, borderColor: C.border, ...shadow },
   unitCardOccupied: { borderColor: "rgba(2,132,199,0.25)" },
-  unitBadge: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", marginRight: 14 },
+  unitBadge: { width: 40, height: 40, borderRadius: 20, alignItems: "center", justifyContent: "center", marginRight: isRTL ? 0 : 14, marginLeft: isRTL ? 14 : 0 },
   unitBadgeOccupied: { backgroundColor: "rgba(2,132,199,0.15)" },
   unitBadgeVacant: { backgroundColor: C.surfaceElevated },
   unitBadgeText: { fontSize: 15, fontWeight: "700", color: C.text },
@@ -867,9 +867,9 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   unitLabel: { fontSize: 13, color: C.textMuted },
   tenantName: { fontSize: 16, fontWeight: "600", color: C.text, marginTop: 2 },
   vacantLabel: { fontSize: 15, fontWeight: "500", color: C.textMuted, marginTop: 2 },
-  editLabelBtn: { padding: 6, marginRight: 6 },
+  editLabelBtn: { padding: 6, marginRight: isRTL ? 0 : 6, marginLeft: isRTL ? 6 : 0 },
   editLabelIcon: { fontSize: 14 },
-  statusChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 8 },
+  statusChip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: isRTL ? 0 : 8, marginLeft: isRTL ? 8 : 0 },
   chipActive: { backgroundColor: "rgba(13,148,136,0.15)" },
   chipExpired: { backgroundColor: "rgba(220,38,38,0.12)" },
   chipVacant: { backgroundColor: C.surfaceElevated },
@@ -901,7 +901,7 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   selectAllBtn: { alignSelf: "center", paddingVertical: 8, paddingHorizontal: 16, marginBottom: 4 },
   selectAllText: { fontSize: 13, fontWeight: "600", color: C.primary },
   // Checkbox
-  checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: C.border, backgroundColor: C.background, alignItems: "center", justifyContent: "center", marginRight: 6 },
+  checkCircle: { width: 22, height: 22, borderRadius: 11, borderWidth: 2, borderColor: C.border, backgroundColor: C.background, alignItems: "center", justifyContent: "center", marginRight: isRTL ? 0 : 6, marginLeft: isRTL ? 6 : 0 },
   checkCircleActive: { backgroundColor: C.accent, borderColor: C.accent },
   checkMark: { color: "#fff", fontSize: 13, fontWeight: "700", lineHeight: 16 },
   // Bulk payment bar

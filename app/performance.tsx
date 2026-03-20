@@ -80,7 +80,7 @@ export default function PerformanceScreen() {
   const { colors: C, shadow } = useTheme();
   const { hasFeature } = useSubscription();
   const insets = useSafeAreaInsets();
-  const S = useMemo(() => styles(C, shadow), [C, shadow]);
+  const S = useMemo(() => styles(C, shadow, isRTL), [C, shadow, isRTL]);
 
   const [activeTab, setActiveTab] = useState<MetricTab>((tab as MetricTab) || "revenue");
   const [selectedMonth, setSelectedMonth] = useState<MonthFilter>(new Date().getMonth() + 1);
@@ -594,7 +594,7 @@ export default function PerformanceScreen() {
 }
 
 /* ── styles ── */
-const styles = (C: any, shadow: any) => StyleSheet.create({
+const styles = (C: any, shadow: any, isRTL: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: { flexDirection: "row", alignItems: "center", paddingHorizontal: spacing.md, paddingBottom: spacing.md },
   rowRev: { flexDirection: "row-reverse" },
@@ -626,12 +626,12 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   listItemAmount: { fontSize: 13, fontWeight: "700" },
   rateChip: { backgroundColor: C.accentSoft, borderRadius: radii.pill, paddingHorizontal: 16, paddingVertical: 8, alignSelf: "center", marginBottom: 12 },
   rateChipText: { color: C.accent, fontWeight: "700", fontSize: 14 },
-  overdueRow: { flexDirection: "row", alignItems: "center", backgroundColor: C.surface, borderRadius: radii.md, padding: 14, marginHorizontal: spacing.md, marginBottom: 8, borderLeftWidth: 3, borderLeftColor: "#F59E0B", ...shadow },
+  overdueRow: { flexDirection: "row", alignItems: "center", backgroundColor: C.surface, borderRadius: radii.md, padding: 14, marginHorizontal: spacing.md, marginBottom: 8, borderLeftWidth: isRTL ? 0 : 3, borderLeftColor: isRTL ? undefined : "#F59E0B", borderRightWidth: isRTL ? 3 : 0, borderRightColor: isRTL ? "#F59E0B" : undefined, ...shadow },
   overdueName: { fontSize: 14, fontWeight: "600", color: C.text },
   overdueSub: { fontSize: 11, color: C.textMuted, marginTop: 2 },
   overdueAmount: { fontSize: 13, fontWeight: "700", color: "#EF4444" },
   overdueDays: { fontSize: 11, color: "#F59E0B", marginTop: 2 },
-  overdueChevron: { fontSize: 22, color: C.textMuted, fontWeight: "600", marginLeft: 8, alignSelf: "center" },
+  overdueChevron: { fontSize: 22, color: C.textMuted, fontWeight: "600", marginLeft: isRTL ? 0 : 8, marginRight: isRTL ? 8 : 0, alignSelf: "center" },
   messageCard: { backgroundColor: C.surface, borderRadius: radii.lg, padding: 32, marginHorizontal: spacing.md, alignItems: "center", ...shadow },
   messageIcon: { fontSize: 32, marginBottom: 12 },
   messageText: { fontSize: 14, color: C.textMuted, textAlign: "center", lineHeight: 20 },

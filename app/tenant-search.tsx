@@ -40,7 +40,7 @@ export default function TenantSearchScreen() {
   const { t, isRTL } = useLanguage();
   const { colors: C, shadow, isDark } = useTheme();
   const insets = useSafeAreaInsets();
-  const S = useMemo(() => styles(C, shadow), [C, shadow]);
+  const S = useMemo(() => styles(C, shadow, isRTL), [C, shadow, isRTL]);
   const params = useLocalSearchParams<{ leaseExpiring?: string }>();
 
   const [query, setQuery] = useState("");
@@ -507,15 +507,15 @@ export default function TenantSearchScreen() {
   );
 }
 
-const styles = (C: any, shadow: any) => StyleSheet.create({
+const styles = (C: any, shadow: any, isRTL: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: { flexDirection: "row", alignItems: "center", paddingBottom: 16, paddingHorizontal: spacing.md, backgroundColor: C.surface, borderBottomWidth: 1, borderBottomColor: C.border },
   headerRTL: { flexDirection: "row-reverse" },
-  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surfaceElevated, alignItems: "center", justifyContent: "center", marginRight: 12 },
+  backBtn: { width: 40, height: 40, borderRadius: 20, backgroundColor: C.surfaceElevated, alignItems: "center", justifyContent: "center", marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0 },
   backArrow: { fontSize: 22, color: C.primary, fontWeight: "700" },
   headerTitle: { fontSize: 18, fontWeight: "700", color: C.text },
   searchWrap: { flexDirection: "row", alignItems: "center", margin: spacing.md, backgroundColor: C.surface, borderRadius: radii.md, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12, ...shadow },
-  searchIcon: { fontSize: 16, marginRight: 8 },
+  searchIcon: { fontSize: 16, marginRight: isRTL ? 0 : 8, marginLeft: isRTL ? 8 : 0 },
   searchInput: { flex: 1, paddingVertical: 12, color: C.text, fontSize: 15 },
   clearBtn: { padding: 4 },
   clearText: { color: C.textMuted, fontSize: 14 },
@@ -542,13 +542,13 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   noResults: { fontSize: 15, color: C.textMuted },
   listContent: { paddingHorizontal: spacing.md, paddingBottom: 32 },
   card: { flexDirection: "row", alignItems: "center", backgroundColor: C.surface, borderRadius: radii.md, paddingVertical: 14, paddingHorizontal: 14, borderWidth: 1, borderColor: C.border, ...shadow },
-  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(2,132,199,0.15)", alignItems: "center", justifyContent: "center", marginRight: 12 },
+  avatar: { width: 42, height: 42, borderRadius: 21, backgroundColor: "rgba(2,132,199,0.15)", alignItems: "center", justifyContent: "center", marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0 },
   avatarText: { fontSize: 18, fontWeight: "700", color: C.primary },
   info: { flex: 1 },
   tenantName: { fontSize: 15, fontWeight: "600", color: C.text },
   sub: { fontSize: 12, color: C.textMuted, marginTop: 2 },
   rent: { fontSize: 13, color: C.accent, fontWeight: "600", marginTop: 3 },
-  chip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: 6 },
+  chip: { paddingHorizontal: 10, paddingVertical: 4, borderRadius: 12, marginRight: isRTL ? 0 : 6, marginLeft: isRTL ? 6 : 0 },
   cardExpiring: { borderWidth: 1.5, borderColor: "#F59E0B" },
   chipActive: { backgroundColor: "rgba(13,148,136,0.15)" },
   chipExpired: { backgroundColor: "rgba(220,38,38,0.12)" },

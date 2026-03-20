@@ -62,11 +62,12 @@ Deno.serve(async (req: Request) => {
     }
 
     const encrypted = await encryptAccount(accountNumber.trim(), SEC_KEY);
+    // Wrap in OData single quotes to avoid URI predicate parsing errors
     const apiUrl =
       SEC_API +
-      "?contractAccount=" +
+      "?contractAccount='" +
       encodeURIComponent(encrypted) +
-      "&isEncrypt=true";
+      "'&isEncrypt=true";
 
     const apiRes = await fetch(apiUrl, {
       method: "GET",

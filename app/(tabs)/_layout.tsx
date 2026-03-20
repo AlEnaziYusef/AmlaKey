@@ -40,7 +40,7 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
       {/* App logo + collapse toggle */}
       <View style={[sidebarStyles.logoRow, { flexDirection: isRTL ? "row-reverse" : "row" }, collapsed && { justifyContent: "center", paddingHorizontal: 0 }]}>
         {collapsed ? (
-          <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel="Expand sidebar">
+          <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel={isRTL ? "توسيع القائمة الجانبية" : "Expand sidebar"}>
             <Image
               source={require("../../assets/images/splash-icon.png")}
               style={sidebarStyles.logo}
@@ -57,7 +57,7 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
             <Text style={[sidebarStyles.logoText, { color: colors.text, flex: 1, textAlign: isRTL ? "right" : "left" }]}>
               {isRTL ? "أملاكي" : "Amlakey"}
             </Text>
-            <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel="Collapse sidebar">
+            <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel={isRTL ? "طي القائمة الجانبية" : "Collapse sidebar"}>
               <Ionicons
                 name={isRTL ? "chevron-forward" : "chevron-back"}
                 size={18}
@@ -139,7 +139,7 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
           },
         ]}
         accessibilityRole="button"
-        accessibilityLabel={isDark ? "Switch to light mode" : "Switch to dark mode"}
+        accessibilityLabel={isDark ? (isRTL ? "التبديل إلى الوضع الفاتح" : "Switch to light mode") : (isRTL ? "التبديل إلى الوضع الداكن" : "Switch to dark mode")}
       >
         <Ionicons
           name={isDark ? "sunny-outline" : "moon-outline"}

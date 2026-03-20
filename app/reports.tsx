@@ -82,7 +82,7 @@ export default function ReportsScreen() {
   const { colors: C, shadow } = useTheme();
   const { hasFeature } = useSubscription();
   const insets = useSafeAreaInsets();
-  const S = useMemo(() => styles(C, shadow), [C, shadow]);
+  const S = useMemo(() => styles(C, shadow, isRTL), [C, shadow, isRTL]);
 
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [reportType, setReportType] = useState<ReportType>("full");
@@ -539,7 +539,7 @@ export default function ReportsScreen() {
   );
 }
 
-const styles = (C: any, shadow: any) =>
+const styles = (C: any, shadow: any, isRTL: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     header: {
@@ -591,7 +591,7 @@ const styles = (C: any, shadow: any) =>
     },
     detailTitle: { fontSize: 15, fontWeight: "700", color: C.text, padding: 16, paddingBottom: 8 },
     detailRow: { flexDirection: "row", alignItems: "center", paddingHorizontal: 16, paddingVertical: 12 },
-    detailDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginLeft: 16 },
+    detailDivider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginLeft: isRTL ? 0 : 16, marginRight: isRTL ? 16 : 0 },
     detailName: { fontSize: 14, color: C.text, fontWeight: "500" },
     detailSub: { fontSize: 12, color: C.textMuted, marginTop: 2 },
     detailAmount: { fontSize: 14, fontWeight: "700", color: "#22C55E" },

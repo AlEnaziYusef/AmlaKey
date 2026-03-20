@@ -36,7 +36,7 @@ export default function ProfileScreen() {
   const { user, signOut } = useAuth();
   const { isPro, hasFeature } = useSubscription();
   const { isDesktop, isWide } = useResponsive();
-  const S = useMemo(() => styles(C, shadow, isDark), [C, shadow, isDark]);
+  const S = useMemo(() => styles(C, shadow, isDark, isRTL), [C, shadow, isDark, isRTL]);
 
   // Personal info
   const [personalInfo, setPersonalInfo] = useState<PersonalInfo>({ fullName: "", phone: "", city: "", company: "" });
@@ -361,7 +361,7 @@ export default function ProfileScreen() {
   );
 }
 
-const styles = (C: any, shadow: any, isDark: boolean) =>
+const styles = (C: any, shadow: any, isDark: boolean, isRTL: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
 
@@ -420,13 +420,14 @@ const styles = (C: any, shadow: any, isDark: boolean) =>
       width: 34, height: 34, borderRadius: 10,
       backgroundColor: isDark ? "rgba(255,255,255,0.08)" : C.background,
       alignItems: "center", justifyContent: "center",
-      marginRight: 12,
+      marginRight: isRTL ? 0 : 12,
+      marginLeft: isRTL ? 12 : 0,
     },
     rowIcon: { fontSize: 18 },
     rowLabel: { flex: 1, fontSize: 15, color: C.text },
     rowValue: { fontSize: 14, color: C.textMuted },
     rowChevron: { fontSize: 20, color: C.textMuted, fontWeight: "600" },
-    divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginLeft: 62 },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginLeft: isRTL ? 0 : 62, marginRight: isRTL ? 62 : 0 },
 
     // ── Custom Toggle Pill ──
     togglePill: {
