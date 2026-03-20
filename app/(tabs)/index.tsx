@@ -7,7 +7,7 @@ import { crossAlert } from "../../lib/alert";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { supabase } from "../../lib/supabase";
-import { useLanguage } from "../../context/LanguageContext";
+import { useLanguage, TKey } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { spacing, radii } from "../../constants/theme";
 import NetInfo from "@react-native-community/netinfo";
@@ -52,17 +52,22 @@ function getGreeting(t: (k: any) => string) {
   return h < 12 ? t("goodMorning") : h < 17 ? t("goodAfternoon") : t("goodEvening");
 }
 
-function timeAgo(dateStr: string) {
+function timeAgo(dateStr: string, isRTL: boolean) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), d = Math.floor(diff / 86400000);
+  if (isRTL) {
+    if (m < 60) return `قبل ${m} د`;
+    if (h < 24) return `قبل ${h} س`;
+    return `قبل ${d} ي`;
+  }
   if (m < 60) return `${m}m ago`;
   if (h < 24) return `${h}h ago`;
   return `${d}d ago`;
 }
 
-function formatFullDate(dateStr: string) {
+function formatFullDate(dateStr: string, lang: string = "en") {
   try {
-    return new Date(dateStr).toLocaleDateString("en-GB", {
+    return new Date(dateStr).toLocaleDateString(lang === "ar" ? "ar-SA" : "en-GB", {
       day: "numeric", month: "short", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
@@ -310,10 +315,10 @@ export default function DashboardScreen() {
       }),
       ...(recentExpenses ?? []).map((e: any) => ({
         id: `e-${e.id}`, icon: "🧾",
-        title: e.category,
+        title: t(e.category as TKey) || e.category,
         sub: e.properties?.name ?? "",
         amount: e.amount, time: e.created_at, color: "#EF4444",
-        detail: e.description || e.category,
+        detail: e.description || t(e.category as TKey) || e.category,
         propertyName: e.properties?.name ?? "",
       })),
     ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());
@@ -620,7 +625,7 @@ export default function DashboardScreen() {
                       {u.propertyName ? (
                         <Text style={S.expandedDetail}>🏠 {u.propertyName}{u.unitNumber ? ` · ${t("unit")} ${u.unitNumber}` : ""}</Text>
                       ) : null}
-                      <Text style={S.expandedDate}>🕐 {formatFullDate(u.time)}</Text>
+                      <Text style={S.expandedDate}>🕐 {formatFullDate(u.time, lang)}</Text>
                     </View>
                   )}
                 </View>
@@ -628,7 +633,7 @@ export default function DashboardScreen() {
                   {u.amount !== undefined && (
                     <Text style={[S.updateAmount, { color: u.color }]}>{u.amount.toLocaleString()} {t("sar")}</Text>
                   )}
-                  <Text style={S.updateTime}>{timeAgo(u.time)}</Text>
+                  <Text style={S.updateTime}>{timeAgo(u.time, isRTL)}</Text>
                   <Text style={[S.expandChevron, { color: u.color }]}>{isExpanded ? "▲" : "▼"}</Text>
                 </View>
               </TouchableOpacity>
