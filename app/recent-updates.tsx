@@ -147,10 +147,10 @@ export default function RecentUpdatesScreen() {
       }),
       ...(recentExpenses ?? []).map((e: any) => ({
         id: `e-${e.id}`, icon: "🧾",
-        title: e.category,
+        title: t(e.category as TKey) || e.category,
         sub: e.properties?.name ?? "",
         amount: e.amount, time: e.created_at, color: "#EF4444",
-        detail: e.description || e.category,
+        detail: e.description || t(e.category as TKey) || e.category,
         propertyName: e.properties?.name ?? "",
       })),
     ].sort((a, b) => new Date(b.time).getTime() - new Date(a.time).getTime());

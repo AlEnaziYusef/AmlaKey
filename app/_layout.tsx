@@ -15,6 +15,16 @@ import { RTLSwipeBack } from "../components/RTLSwipeBack";
 
 const isWeb = Platform.OS === "web";
 
+// Force RTL at module load time — this runs BEFORE any component renders.
+// I18nManager.forceRTL only takes effect after an app restart, so we must
+// set it as early as possible. Default to Arabic (RTL) since that's the
+// primary language. AsyncStorage.getItem is async but we set the default
+// synchronously here; the LanguageProvider will update if user chose English.
+if (!isWeb) {
+  I18nManager.allowRTL(true);
+  I18nManager.forceRTL(true);
+}
+
 function SplashView({ isRTL }: { isRTL: boolean }) {
   return (
     <View style={splashStyles.container}>
@@ -92,17 +102,11 @@ function RootNavigator() {
       });
   }, [session, loading]);
 
-  // Sync I18nManager with saved language preference on launch (no restart needed for first launch)
+  // Sync document direction on web whenever language changes
   useEffect(() => {
     if (isWeb) {
-      // On web, set document direction instead of I18nManager
       document.documentElement.dir = isRTL ? "rtl" : "ltr";
       document.documentElement.lang = isRTL ? "ar" : "en";
-    } else {
-      if (I18nManager.isRTL !== isRTL) {
-        I18nManager.allowRTL(isRTL);
-        I18nManager.forceRTL(isRTL);
-      }
     }
   }, [isRTL]);
 

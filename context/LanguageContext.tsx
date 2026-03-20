@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from "react";
-import { Platform } from "react-native";
+import { I18nManager, Platform } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import * as Updates from "expo-updates";
 
 type Language = "en" | "ar";
 
@@ -1202,16 +1203,22 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
     }
   }, [lang]);
 
-  const toggle = async () => {
-    const next: Language = lang === "en" ? "ar" : "en";
+  const applyLanguage = async (next: Language) => {
+    const needsRTLChange = Platform.OS !== "web" && I18nManager.isRTL !== (next === "ar");
     setLang(next);
     await AsyncStorage.setItem("@lang", next);
+    if (needsRTLChange) {
+      I18nManager.allowRTL(next === "ar");
+      I18nManager.forceRTL(next === "ar");
+      // I18nManager changes require a reload to take effect
+      if (!__DEV__) {
+        await Updates.reloadAsync();
+      }
+    }
   };
 
-  const setLanguage = async (l: Language) => {
-    setLang(l);
-    await AsyncStorage.setItem("@lang", l);
-  };
+  const toggle = () => applyLanguage(lang === "en" ? "ar" : "en");
+  const setLanguage = (l: Language) => applyLanguage(l);
 
   const t = (k: TKey): string => (translations[lang][k] as string) ?? k;
   return (
