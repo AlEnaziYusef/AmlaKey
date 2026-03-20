@@ -2,6 +2,7 @@ import React, { createContext, useCallback, useContext, useEffect, useRef, useSt
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as Notifications from "expo-notifications";
 import { Platform } from "react-native";
+import { router } from "expo-router";
 import { useLanguage } from "./LanguageContext";
 import { useAuth } from "./AuthContext";
 import { userKey, NOTIFICATIONS_KEY, NOTIFICATION_HISTORY_KEY } from "../lib/storage";
@@ -350,6 +351,38 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
             });
           } catch {}
         }
+
+        // 3 days after due date
+        const threeDaysAfter = new Date(dueDateThisMonth.getTime() + 3 * 86400000);
+        if (threeDaysAfter > today) {
+          try {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: t("overdueRentTitle"),
+                body: fill(t("overdueRentBody"), { name: tn.name, amount: String(tn.monthly_rent) }),
+                sound: s.soundEnabled ? "default" : undefined,
+                data: { type: "overdue_rent", tenantId: tn.id, propertyId: tn.property_id },
+              },
+              trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: threeDaysAfter },
+            });
+          } catch {}
+        }
+
+        // 7 days after due date
+        const sevenDaysAfter = new Date(dueDateThisMonth.getTime() + 7 * 86400000);
+        if (sevenDaysAfter > today) {
+          try {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: t("overdueRentUrgentTitle"),
+                body: fill(t("overdueRentUrgentBody"), { name: tn.name, days: "7", amount: String(tn.monthly_rent) }),
+                sound: s.soundEnabled ? "default" : undefined,
+                data: { type: "overdue_rent", tenantId: tn.id, propertyId: tn.property_id },
+              },
+              trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: sevenDaysAfter },
+            });
+          } catch {}
+        }
       }
 
       // ── Lease expiry warning ────────────────────────────────────────────────
@@ -376,8 +409,22 @@ export function NotificationProvider({ children }: { children: React.ReactNode }
 
   // ── Notification tap listener ───────────────────────────────────────────────
   useEffect(() => {
-    const sub = Notifications.addNotificationResponseReceivedListener(() => {
-      // Future: navigate to relevant screen based on notification data
+    const sub = Notifications.addNotificationResponseReceivedListener((response) => {
+      const data = response.notification.request.content.data as any;
+      if (!data?.type) return;
+
+      // Mark notification as read if we can find it
+      const title = response.notification.request.content.title ?? "";
+      setNotifications((prev) =>
+        prev.map((n) => (n.title === title && !n.read) ? { ...n, read: true } : n)
+      );
+
+      // Navigate based on notification type
+      if (data.type === "rent_due_reminder" || data.type === "overdue_rent" || data.type === "payment_received") {
+        router.push("/(tabs)");
+      } else if (data.type === "lease_expiry_warning" && data.propertyId) {
+        router.push(`/property/${data.propertyId}`);
+      }
     });
     return () => sub.remove();
   }, []);
