@@ -43,7 +43,7 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
           <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel={isRTL ? "توسيع القائمة الجانبية" : "Expand sidebar"}>
             <Image
               source={require("../../assets/images/splash-icon.png")}
-              style={sidebarStyles.logo}
+              style={[sidebarStyles.logo, isRTL && { marginRight: 0, marginLeft: 10 }]}
               resizeMode="contain"
             />
           </Pressable>
@@ -51,7 +51,7 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
           <>
             <Image
               source={require("../../assets/images/splash-icon.png")}
-              style={sidebarStyles.logo}
+              style={[sidebarStyles.logo, isRTL && { marginRight: 0, marginLeft: 10 }]}
               resizeMode="contain"
             />
             <Text style={[sidebarStyles.logoText, { color: colors.text, flex: 1 }]}>
