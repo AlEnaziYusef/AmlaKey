@@ -202,15 +202,43 @@ Deno.serve(async (req: Request) => {
           (today.getTime() - dueDate.getTime()) / 86400000
         );
 
-        // Send on the due date and 3 days after
-        if (diffDays === 0 || diffDays === 3) {
+        // Send on escalating intervals: 0, 1, 3, 7, 14, 30 days overdue
+        if ([0, 1, 3, 7, 14, 30].includes(diffDays)) {
+          let title: string;
+          let body: string;
+
+          if (diffDays === 0) {
+            title = isAr ? "الإيجار مستحق اليوم" : "Rent Due Today";
+            body = isAr
+              ? `إيجار ${tenant.name} بقيمة ${tenant.monthly_rent} ريال مستحق اليوم`
+              : `${tenant.name}'s rent of ${tenant.monthly_rent} SAR is due today`;
+          } else if (diffDays <= 3) {
+            title = isAr ? "إيجار متأخر" : "Overdue Rent";
+            body = isAr
+              ? `الإيجار متأخر بـ ${diffDays} أيام`
+              : `Rent is ${diffDays} days overdue`;
+          } else if (diffDays === 7) {
+            title = isAr ? "عاجل: إيجار متأخر" : "Urgent: Overdue Rent";
+            body = isAr
+              ? `الإيجار متأخر بـ 7 أيام - عاجل`
+              : `Rent is 7 days overdue - urgent`;
+          } else if (diffDays === 14) {
+            title = isAr ? "عاجل: إيجار متأخر" : "Urgent: Overdue Rent";
+            body = isAr
+              ? `الإيجار متأخر بـ 14 يوم - يتطلب إجراء`
+              : `Rent is 14 days overdue - action required`;
+          } else {
+            title = isAr ? "حرج: إيجار متأخر" : "Critical: Overdue Rent";
+            body = isAr
+              ? `الإيجار متأخر بـ 30 يوم - حرج`
+              : `Rent is 30 days overdue - critical`;
+          }
+
           for (const token of uTokens) {
             messages.push({
               to: token,
-              title: isAr ? "إيجار متأخر" : "Overdue Rent",
-              body: isAr
-                ? `إيجار ${tenant.name} (${tenant.monthly_rent} ريال) متأخر${diffDays > 0 ? ` بـ ${diffDays} أيام` : ""}`
-                : `${tenant.name}'s rent (${tenant.monthly_rent} SAR) is overdue${diffDays > 0 ? ` by ${diffDays} days` : ""}`,
+              title,
+              body,
               data: {
                 type: "overdue_rent",
                 tenantId: tenant.id,

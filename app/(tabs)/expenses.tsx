@@ -214,16 +214,23 @@ export default function ExpensesScreen() {
   const hasSyncedOnMount = useRef(false);
   // Track bill_refs that the user explicitly deleted so sync doesn't re-create them
   const dismissedBillRefs = useRef<Set<string>>(new Set());
+  const dismissedLoaded = useRef(false);
   const DISMISSED_KEY = uid ? userKey(uid, "dismissed_bills") : "";
 
   // Load dismissed bill refs from storage on mount
   useEffect(() => {
-    if (!DISMISSED_KEY) return;
+    if (!DISMISSED_KEY) {
+      dismissedLoaded.current = true;
+      return;
+    }
     AsyncStorage.getItem(DISMISSED_KEY).then((v) => {
       if (v) {
         try { dismissedBillRefs.current = new Set(JSON.parse(v)); } catch {}
       }
-    }).catch(() => {});
+      dismissedLoaded.current = true;
+    }).catch(() => {
+      dismissedLoaded.current = true;
+    });
   }, [DISMISSED_KEY]);
 
   useFocusEffect(useCallback(() => {
@@ -252,6 +259,12 @@ export default function ExpensesScreen() {
     if (syncing) return;
     setSyncing(true);
     try {
+      // Wait for dismissed refs to load (max 2s)
+      let waited = 0;
+      while (!dismissedLoaded.current && waited < 2000) {
+        await new Promise(r => setTimeout(r, 100));
+        waited += 100;
+      }
       // Load all properties with their accounts
       const { data: props } = await supabase
         .from("properties")
