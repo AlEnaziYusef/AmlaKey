@@ -224,7 +224,9 @@ export const SwipeableRow = forwardRef<SwipeableRowRef, Props>(
           {
             borderRadius,
             width: ACTION_WIDTH,
-            ...(isRTL ? { left: 0 } : { right: 0 }),
+            // Use writingDirection to prevent I18nManager from auto-flipping flexDirection
+            flexDirection: "row",
+            ...(isRTL ? { left: 0, writingDirection: "ltr" } : { right: 0 }),
           },
           actionsStyle,
         ]}>
@@ -300,7 +302,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     top: 0,
     bottom: 0,
-    flexDirection: "row",
     overflow: "hidden",
   },
   actionBtn: {
