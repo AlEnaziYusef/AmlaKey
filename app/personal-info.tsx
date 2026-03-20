@@ -28,7 +28,7 @@ export default function PersonalInfoScreen() {
   const { colors: C, isDark, shadow } = useTheme();
   const { user } = useAuth();
   const insets = useSafeAreaInsets();
-  const S = useMemo(() => styles(C, shadow, isDark), [C, shadow, isDark]);
+  const S = useMemo(() => styles(C, shadow, isDark, isRTL), [C, shadow, isDark, isRTL]);
 
   const [info, setInfo] = useState<PersonalInfo>({ firstName: "", lastName: "", fullName: "", phone: "", city: "", company: "" });
 
@@ -170,7 +170,7 @@ export default function PersonalInfoScreen() {
   );
 }
 
-const styles = (C: any, shadow: any, isDark: boolean) =>
+const styles = (C: any, shadow: any, isDark: boolean, isRTL: boolean) =>
   StyleSheet.create({
     container: { flex: 1, backgroundColor: C.background },
     header: {
@@ -199,7 +199,7 @@ const styles = (C: any, shadow: any, isDark: boolean) =>
     infoLabel: { fontSize: 14, color: C.textMuted, width: 100 },
     infoValue: { flex: 1, fontSize: 15, color: C.text, fontWeight: "500" },
 
-    divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginLeft: 16 },
+    divider: { height: StyleSheet.hairlineWidth, backgroundColor: C.border, marginLeft: isRTL ? 0 : 16, marginRight: isRTL ? 16 : 0 },
 
     fieldLabel: { fontSize: 12, fontWeight: "600", color: C.textMuted, marginBottom: 6 },
     input: {

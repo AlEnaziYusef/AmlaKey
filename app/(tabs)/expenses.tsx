@@ -298,16 +298,15 @@ export default function ExpensesScreen() {
             const bill = await fetchSECBill(acc.accountNumber);
             amount = bill.totalAmount;
             dueAmount = bill.dueAmount;
-            desc = isRTL
-              ? `فاتورة الكهرباء - ${acc.propertyName}${acc.unitNumber ? ` وحدة ${acc.unitNumber}` : ""} - ${bill.consumption} كيلوواط - ${billPeriod}`
-              : `Electricity - ${acc.propertyName}${acc.unitNumber ? ` Unit ${acc.unitNumber}` : ""} - ${bill.consumption} kWh - ${billPeriod}`;
+            const unitStr = acc.unitNumber ? ` ${t("unit")} ${acc.unitNumber}` : "";
+            const kWhLabel = isRTL ? "كيلوواط" : "kWh";
+            desc = `${t("electricity")} - ${acc.propertyName}${unitStr} - ${bill.consumption} ${kWhLabel} - ${billPeriod}`;
           } else {
             const bill = await fetchNWCBill(acc.accountNumber);
             amount = bill.lastBillAmount || bill.dueAmount;
             dueAmount = bill.dueAmount;
-            desc = isRTL
-              ? `فاتورة المياه - ${acc.propertyName}${acc.unitNumber ? ` وحدة ${acc.unitNumber}` : ""} - ${billPeriod}`
-              : `Water bill - ${acc.propertyName}${acc.unitNumber ? ` Unit ${acc.unitNumber}` : ""} - ${billPeriod}`;
+            const unitStr = acc.unitNumber ? ` ${t("unit")} ${acc.unitNumber}` : "";
+            desc = `${t("water")} - ${acc.propertyName}${unitStr} - ${billPeriod}`;
           }
 
           const isBillPaid = dueAmount === 0;
@@ -519,16 +518,15 @@ export default function ExpensesScreen() {
         const bill = await fetchSECBill(acc.accountNumber);
         amount = bill.totalAmount;
         dueAmount = bill.dueAmount;
-        desc = isRTL
-          ? `فاتورة الكهرباء - ${acc.propertyName}${acc.unitNumber ? ` وحدة ${acc.unitNumber}` : ""} - ${bill.consumption} كيلوواط - ${billPeriod}`
-          : `Electricity - ${acc.propertyName}${acc.unitNumber ? ` Unit ${acc.unitNumber}` : ""} - ${bill.consumption} kWh - ${billPeriod}`;
+        const unitStr = acc.unitNumber ? ` ${t("unit")} ${acc.unitNumber}` : "";
+        const kWhLabel = isRTL ? "كيلوواط" : "kWh";
+        desc = `${t("electricity")} - ${acc.propertyName}${unitStr} - ${bill.consumption} ${kWhLabel} - ${billPeriod}`;
       } else {
         const bill = await fetchNWCBill(acc.accountNumber);
         amount = bill.dueAmount;
         dueAmount = bill.dueAmount;
-        desc = isRTL
-          ? `فاتورة المياه - ${acc.propertyName}${acc.unitNumber ? ` وحدة ${acc.unitNumber}` : ""} - ${billPeriod}`
-          : `Water bill - ${acc.propertyName}${acc.unitNumber ? ` Unit ${acc.unitNumber}` : ""} - ${billPeriod}`;
+        const unitStr = acc.unitNumber ? ` ${t("unit")} ${acc.unitNumber}` : "";
+        desc = `${t("water")} - ${acc.propertyName}${unitStr} - ${billPeriod}`;
       }
 
       const isBillPaid = dueAmount === 0;
@@ -721,7 +719,7 @@ export default function ExpensesScreen() {
         const today = new Date().toISOString().split("T")[0];
         const selectedProp = properties.find(p => p.id === form.property_id);
         const propName = selectedProp?.name ?? "";
-        const unitLabel = form.unit_number ? (isRTL ? ` وحدة ${form.unit_number}` : ` Unit ${form.unit_number}`) : "";
+        const unitLabel = form.unit_number ? ` ${t("unit")} ${form.unit_number}` : "";
         const billPeriod = isRTL
           ? new Date().toLocaleDateString("ar-SA-u-ca-gregory", { month: "long", year: "numeric" })
           : new Date().toLocaleDateString("en-US", { month: "short", year: "numeric" });
@@ -734,16 +732,13 @@ export default function ExpensesScreen() {
           const bill = await fetchSECBill(accountNumber);
           amount = bill.totalAmount;
           dueAmount = bill.dueAmount;
-          desc = isRTL
-            ? `فاتورة الكهرباء - ${propName}${unitLabel} - ${bill.consumption} كيلوواط - ${billPeriod}`
-            : `Electricity - ${propName}${unitLabel} - ${bill.consumption} kWh - ${billPeriod}`;
+          const kWhLabel = isRTL ? "كيلوواط" : "kWh";
+          desc = `${t("electricity")} - ${propName}${unitLabel} - ${bill.consumption} ${kWhLabel} - ${billPeriod}`;
         } else {
           const bill = await fetchNWCBill(accountNumber);
           amount = bill.lastBillAmount || bill.dueAmount;
           dueAmount = bill.dueAmount;
-          desc = isRTL
-            ? `فاتورة المياه - ${propName}${unitLabel} - ${billPeriod}`
-            : `Water bill - ${propName}${unitLabel} - ${billPeriod}`;
+          desc = `${t("water")} - ${propName}${unitLabel} - ${billPeriod}`;
         }
 
         const isBillPaid = dueAmount === 0;
@@ -887,13 +882,13 @@ export default function ExpensesScreen() {
           >
             {/* Month selector */}
             <View style={[S.monthSelector, isRTL && S.rowRev]}>
-              <TouchableOpacity onPress={() => changeMonth(-1)} style={S.monthNavBtn} accessibilityRole="button" accessibilityLabel="Previous month">
+              <TouchableOpacity onPress={() => changeMonth(-1)} style={S.monthNavBtn} accessibilityRole="button" accessibilityLabel={isRTL ? "الشهر السابق" : "Previous month"}>
                 <Text style={S.monthNavTxt}>{isRTL ? "›" : "‹"}</Text>
               </TouchableOpacity>
               <TouchableOpacity onPress={() => setSelectedMonth(new Date().toISOString().slice(0, 7))} activeOpacity={0.7} accessibilityRole="button" accessibilityLabel={monthLabel}>
                 <Text style={S.monthTitle}>{monthLabel}</Text>
               </TouchableOpacity>
-              <TouchableOpacity onPress={() => changeMonth(1)} style={S.monthNavBtn} accessibilityRole="button" accessibilityLabel="Next month">
+              <TouchableOpacity onPress={() => changeMonth(1)} style={S.monthNavBtn} accessibilityRole="button" accessibilityLabel={isRTL ? "الشهر التالي" : "Next month"}>
                 <Text style={S.monthNavTxt}>{isRTL ? "‹" : "›"}</Text>
               </TouchableOpacity>
             </View>

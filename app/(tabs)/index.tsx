@@ -292,7 +292,7 @@ export default function DashboardScreen() {
         id: `t-${tn.id}`, icon: "👤", title: tn.name,
         sub: `${tn.properties?.name ?? ""} · ${t("unit")} ${tn.unit_number}`,
         amount: tn.monthly_rent, time: tn.created_at, color: C.primary,
-        detail: "New tenant added",
+        detail: t("newTenantAdded"),
         propertyName: tn.properties?.name ?? "",
         unitNumber: String(tn.unit_number),
       })),
@@ -300,10 +300,10 @@ export default function DashboardScreen() {
         const tenant = p.tenants as any;
         return {
           id: `p-${p.id}`, icon: "💰",
-          title: tenant?.name ?? "Tenant",
-          sub: "Rent collected",
+          title: tenant?.name ?? t("tenant"),
+          sub: t("rentCollected"),
           amount: p.amount, time: p.created_at, color: "#22C55E",
-          detail: "Payment received",
+          detail: t("paymentReceived"),
           propertyName: tenant?.properties?.name ?? "",
           unitNumber: tenant?.unit_number ? String(tenant.unit_number) : "",
         };

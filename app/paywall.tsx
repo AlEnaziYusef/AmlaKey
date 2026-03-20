@@ -52,7 +52,7 @@ export default function PaywallScreen() {
     if (isWeb) {
       showAlert(
         t("subscribePro"),
-        "Subscriptions are available through the mobile app. Download Amlakey from the App Store or Google Play to subscribe.",
+        isRTL ? "الاشتراكات متاحة عبر تطبيق الجوال. قم بتحميل أملاكي من App Store أو Google Play للاشتراك." : "Subscriptions are available through the mobile app. Download Amlakey from the App Store or Google Play to subscribe.",
       );
       return;
     }
@@ -65,7 +65,7 @@ export default function PaywallScreen() {
     if (!pkg) {
       showAlert(
         t("subscribePro"),
-        "Subscription will be available soon on the App Store.",
+        isRTL ? "الاشتراك سيكون متاحاً قريباً على App Store." : "Subscription will be available soon on the App Store.",
       );
       return;
     }
@@ -79,7 +79,7 @@ export default function PaywallScreen() {
 
   async function handleRestore() {
     if (isWeb) {
-      showAlert("ℹ️", "Restore purchases is only available on the mobile app.");
+      showAlert("ℹ️", isRTL ? "استعادة المشتريات متاحة فقط على تطبيق الجوال." : "Restore purchases is only available on the mobile app.");
       return;
     }
     setRestoring(true);

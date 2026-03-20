@@ -1186,7 +1186,7 @@ const LanguageContext = createContext<LangCtx>({
 });
 
 export function LanguageProvider({ children }: { children: React.ReactNode }) {
-  const [lang, setLang] = useState<Language>("en");
+  const [lang, setLang] = useState<Language>("ar");
 
   useEffect(() => {
     AsyncStorage.getItem("@lang").then((v) => {

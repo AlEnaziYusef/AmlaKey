@@ -32,17 +32,23 @@ function getDateGroup(dateStr: string, t: (k: TKey) => string): string {
 
 type FilterType = "all" | "overdue" | "tenant" | "payment" | "expense";
 
-function timeAgo(dateStr: string) {
+function timeAgo(dateStr: string, isRTL: boolean) {
   const diff = Date.now() - new Date(dateStr).getTime();
   const m = Math.floor(diff / 60000), h = Math.floor(diff / 3600000), d = Math.floor(diff / 86400000);
+  if (isRTL) {
+    if (m < 60) return `قبل ${m} د`;
+    if (h < 24) return `قبل ${h} س`;
+    return `قبل ${d} ي`;
+  }
   if (m < 60) return `${m}m ago`;
   if (h < 24) return `${h}h ago`;
   return `${d}d ago`;
 }
 
-function formatFullDate(dateStr: string) {
+function formatFullDate(dateStr: string, language: string) {
   try {
-    return new Date(dateStr).toLocaleDateString("en-GB", {
+    const locale = language === "ar" ? "ar-SA" : "en-GB";
+    return new Date(dateStr).toLocaleDateString(locale, {
       day: "numeric", month: "short", year: "numeric",
       hour: "2-digit", minute: "2-digit",
     });
@@ -50,7 +56,7 @@ function formatFullDate(dateStr: string) {
 }
 
 export default function RecentUpdatesScreen() {
-  const { t, isRTL } = useLanguage();
+  const { t, isRTL, lang } = useLanguage();
   const { colors: C, shadow } = useTheme();
   const insets = useSafeAreaInsets();
   const S = useMemo(() => styles(C, shadow), [C, shadow]);
@@ -129,7 +135,7 @@ export default function RecentUpdatesScreen() {
         const tenant = p.tenants as any;
         return {
           id: `p-${p.id}`, icon: "💰",
-          title: tenant?.name ?? "Tenant",
+          title: tenant?.name ?? t("tenant"),
           sub: t("rentCollected"),
           amount: p.amount, time: p.created_at, color: "#22C55E",
           detail: t("paymentReceived"),
@@ -280,7 +286,7 @@ export default function RecentUpdatesScreen() {
                           {u.propertyName ? (
                             <Text style={S.expandedDetail}>🏠 {u.propertyName}{u.unitNumber ? ` · ${t("unit")} ${u.unitNumber}` : ""}</Text>
                           ) : null}
-                          <Text style={S.expandedDate}>🕐 {formatFullDate(u.time)}</Text>
+                          <Text style={S.expandedDate}>🕐 {formatFullDate(u.time, lang)}</Text>
                         </View>
                       )}
                       {isNavigable && (
@@ -291,7 +297,7 @@ export default function RecentUpdatesScreen() {
                       {u.amount !== undefined && (
                         <Text style={[S.updateAmount, { color: u.color }]}>{u.amount.toLocaleString()} {t("sar")}</Text>
                       )}
-                      <Text style={S.updateTime}>{timeAgo(u.time)}</Text>
+                      <Text style={S.updateTime}>{timeAgo(u.time, isRTL)}</Text>
                       {!isNavigable && (
                         <Text style={[S.expandChevron, { color: u.color }]}>{isExpanded ? "▲" : "▼"}</Text>
                       )}

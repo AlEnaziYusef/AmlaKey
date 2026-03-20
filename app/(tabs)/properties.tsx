@@ -90,7 +90,7 @@ export default function PropertiesScreen() {
   const { isDesktop, isWide } = useResponsive();
   const insets = useSafeAreaInsets();
   const uid = user?.id ?? "";
-  const S = useMemo(() => styles(C, shadow), [C, shadow]);
+  const S = useMemo(() => styles(C, shadow, isRTL), [C, shadow, isRTL]);
 
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -375,7 +375,7 @@ export default function PropertiesScreen() {
             accessibilityRole="search"
           />
           {searchQuery.length > 0 && (
-            <TouchableOpacity onPress={() => setSearchQuery("")} style={S.searchClearBtn} accessibilityRole="button" accessibilityLabel="Clear search">
+            <TouchableOpacity onPress={() => setSearchQuery("")} style={S.searchClearBtn} accessibilityRole="button" accessibilityLabel={isRTL ? "مسح البحث" : "Clear search"}>
               <Text style={S.searchClearText}>✕</Text>
             </TouchableOpacity>
           )}
@@ -647,7 +647,7 @@ export default function PropertiesScreen() {
   }
 }
 
-const styles = (C: any, shadow: any) => StyleSheet.create({
+const styles = (C: any, shadow: any, isRTL: boolean) => StyleSheet.create({
   container: { flex: 1, backgroundColor: C.background },
   header: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", padding: spacing.md },
   rowRev: { flexDirection: "row-reverse" },
@@ -655,7 +655,7 @@ const styles = (C: any, shadow: any) => StyleSheet.create({
   addBtn: { backgroundColor: C.accent, borderRadius: radii.md, paddingHorizontal: 16, paddingVertical: 8 },
   addBtnText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   searchBar: { flexDirection: "row", alignItems: "center", marginHorizontal: spacing.md, marginBottom: 10, backgroundColor: C.background, borderRadius: radii.md, borderWidth: 1, borderColor: C.border, paddingHorizontal: 12 },
-  searchIcon: { fontSize: 14, marginRight: 8 },
+  searchIcon: { fontSize: 14, marginRight: isRTL ? 0 : 8, marginLeft: isRTL ? 8 : 0 },
   searchInput: { flex: 1, paddingVertical: 10, color: C.text, fontSize: 14 },
   searchClearBtn: { padding: 4 },
   searchClearText: { color: C.textMuted, fontSize: 14 },
