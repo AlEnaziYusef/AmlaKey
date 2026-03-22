@@ -31,19 +31,18 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
         {
           width: collapsed ? SIDEBAR_COLLAPSED : SIDEBAR_FULL,
           backgroundColor: colors.surface,
-          borderRightWidth: isRTL ? 0 : 1,
-          borderLeftWidth: isRTL ? 1 : 0,
+          borderRightWidth: 1,
           borderColor: colors.border,
         },
       ]}
     >
       {/* App logo + collapse toggle */}
-      <View style={[sidebarStyles.logoRow, { flexDirection: isRTL ? "row-reverse" : "row" }, collapsed && { justifyContent: "center", paddingHorizontal: 0 }]}>
+      <View style={[sidebarStyles.logoRow, collapsed && { justifyContent: "center", paddingHorizontal: 0 }]}>
         {collapsed ? (
           <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel={isRTL ? "توسيع القائمة الجانبية" : "Expand sidebar"}>
             <Image
               source={require("../../assets/images/splash-icon.png")}
-              style={[sidebarStyles.logo, isRTL && { marginRight: 0, marginLeft: 10 }]}
+              style={sidebarStyles.logo}
               resizeMode="contain"
             />
           </Pressable>
@@ -51,10 +50,10 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
           <>
             <Image
               source={require("../../assets/images/splash-icon.png")}
-              style={[sidebarStyles.logo, { marginRight: isRTL ? 0 : 10, marginLeft: isRTL ? 10 : 0 }]}
+              style={[sidebarStyles.logo, { marginRight: 10 }]}
               resizeMode="contain"
             />
-            <Text style={[sidebarStyles.logoText, { color: colors.text, flex: 1, textAlign: isRTL ? "right" : "left" }]}>
+            <Text style={[sidebarStyles.logoText, { color: colors.text, flex: 1 }]}>
               {isRTL ? "أملاكي" : "Amlakey"}
             </Text>
             <Pressable onPress={onToggle} accessibilityRole="button" accessibilityLabel={isRTL ? "طي القائمة الجانبية" : "Collapse sidebar"}>
@@ -85,7 +84,6 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
                     : hovered
                       ? `${colors.textMuted}11`
                       : "transparent",
-                  flexDirection: isRTL ? "row-reverse" : "row",
                 },
               ]}
               accessibilityRole="button"
@@ -98,7 +96,7 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
                     sidebarStyles.activeBar,
                     {
                       backgroundColor: isActive ? colors.accent : "transparent",
-                      [isRTL ? "right" : "left"]: 0,
+                      left: 0,
                     },
                   ]}
                 />
@@ -107,7 +105,7 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
                 name={tab.icon}
                 size={20}
                 color={isActive ? colors.accent : colors.textMuted}
-                style={collapsed ? {} : { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0 }}
+                style={collapsed ? {} : { marginRight: 12 }}
               />
               {!collapsed && (
                 <Text
@@ -135,7 +133,6 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
           collapsed && { justifyContent: "center", paddingHorizontal: 0, marginHorizontal: 8 },
           {
             backgroundColor: hovered ? `${colors.textMuted}11` : "transparent",
-            flexDirection: isRTL ? "row-reverse" : "row",
           },
         ]}
         accessibilityRole="button"
@@ -145,7 +142,7 @@ function DesktopSidebar({ state, descriptors, navigation, collapsed, onToggle }:
           name={isDark ? "sunny-outline" : "moon-outline"}
           size={20}
           color={colors.textMuted}
-          style={collapsed ? {} : { marginRight: isRTL ? 0 : 12, marginLeft: isRTL ? 12 : 0 }}
+          style={collapsed ? {} : { marginRight: 12 }}
         />
         {!collapsed && (
           <Text style={[sidebarStyles.navLabel, { color: colors.textMuted }]}>
@@ -185,6 +182,7 @@ const sidebarStyles = StyleSheet.create({
     gap: 2,
   },
   navItem: {
+    flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 14,
@@ -204,6 +202,7 @@ const sidebarStyles = StyleSheet.create({
     fontWeight: "500",
   },
   themeToggle: {
+    flexDirection: "row",
     alignItems: "center",
     paddingVertical: 12,
     paddingHorizontal: 14,
