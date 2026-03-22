@@ -6,11 +6,11 @@ import {
 import { crossAlert } from "../../lib/alert";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { supabase } from "../../lib/supabase";
+import * as offlineDb from "../../lib/offlineDb";
 import { useLanguage, TKey } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { spacing, radii } from "../../constants/theme";
-import NetInfo from "@react-native-community/netinfo";
+import { useNetwork } from "../../context/NetworkContext";
 import { Onboarding } from "../../components/Onboarding";
 import { useOnboarding } from "../../hooks/useOnboarding";
 import { useNotification } from "../../context/NotificationContext";
@@ -88,6 +88,7 @@ export default function DashboardScreen() {
   const insets = useSafeAreaInsets();
   const uid = user?.id ?? "";
   const [notifCenterOpen, setNotifCenterOpen] = useState(false);
+  const { isOnline, pendingSyncCount } = useNetwork();
 
   // Hijri calendar preference
   const [showHijri, setShowHijri] = useState(false);
@@ -100,8 +101,6 @@ export default function DashboardScreen() {
   }, [uid]);
 
   const S = useMemo(() => styles(C, shadow), [C, shadow]);
-
-  const [isOffline, setIsOffline] = useState(false);
 
   const [revenue, setRevenue] = useState(0);
   const [collected, setCollected] = useState(0);
@@ -133,13 +132,6 @@ export default function DashboardScreen() {
   const [broadcastCustomMsg, setBroadcastCustomMsg] = useState("");
 
   useEffect(() => {
-    const unsubscribe = NetInfo.addEventListener(state => {
-      setIsOffline(!state.isConnected);
-    });
-    return () => unsubscribe();
-  }, []);
-
-  useEffect(() => {
     if (!uid) return;
     AsyncStorage.getItem(userKey(uid, PERSONAL_INFO_KEY)).then((raw) => {
       if (raw) {
@@ -157,20 +149,14 @@ export default function DashboardScreen() {
       { data: expData }, { data: payByTenant },
       { data: recentTenants }, { data: recentPayments }, { data: recentExpenses },
     ] = await Promise.all([
-      supabase.from("properties").select("id, name, total_units"),
-      supabase.from("tenants").select("id, name, unit_number, property_id, monthly_rent, lease_start, lease_end, payment_frequency, phone, properties!inner(name)").eq("status", "active"),
-      supabase.from("tenants").select("id, status"),
-      supabase.from("expenses").select("amount, date, properties!inner(id)").gte("date", `${thisMonth}-01`).lte("date", `${thisMonth}-31`),
-      supabase.from("payments").select("tenant_id, amount, tenants!inner(properties!inner(id))").eq("month_year", thisMonth),
-      supabase.from("tenants")
-        .select("id, name, unit_number, monthly_rent, created_at, properties!inner(id, name)")
-        .order("created_at", { ascending: false }).limit(3),
-      supabase.from("payments")
-        .select("id, amount, created_at, tenants!inner(name, unit_number, properties!inner(name))")
-        .order("created_at", { ascending: false }).limit(3),
-      supabase.from("expenses")
-        .select("id, category, amount, description, created_at, properties!inner(id, name)")
-        .order("created_at", { ascending: false }).limit(3),
+      offlineDb.select("properties", { userId: uid, columns: "id, name, total_units" }),
+      offlineDb.select("tenants", { userId: uid, columns: "id, name, unit_number, property_id, monthly_rent, lease_start, lease_end, payment_frequency, phone, properties!inner(name)", eq: { status: "active" } }),
+      offlineDb.select("tenants", { userId: uid, columns: "id, status" }),
+      offlineDb.select("expenses", { userId: uid, columns: "amount, date, properties!inner(id)", gte: { date: `${thisMonth}-01` }, lte: { date: `${thisMonth}-31` } }),
+      offlineDb.select("payments", { userId: uid, columns: "tenant_id, amount, tenants!inner(properties!inner(id))", eq: { month_year: thisMonth } }),
+      offlineDb.select("tenants", { userId: uid, columns: "id, name, unit_number, monthly_rent, created_at, properties!inner(id, name)", order: { column: "created_at", ascending: false }, limit: 3 }),
+      offlineDb.select("payments", { userId: uid, columns: "id, amount, created_at, tenants!inner(name, unit_number, properties!inner(name))", order: { column: "created_at", ascending: false }, limit: 3 }),
+      offlineDb.select("expenses", { userId: uid, columns: "id, category, amount, description, created_at, properties!inner(id, name)", order: { column: "created_at", ascending: false }, limit: 3 }),
     ]);
 
     // Tenants whose lease covers the current month (for occupancy/counts)
@@ -337,8 +323,8 @@ export default function DashboardScreen() {
 
   async function fetchCalendarEvents() {
     const [{ data: tenants }, { data: payments }] = await Promise.all([
-      supabase.from("tenants").select("name, unit_number, lease_start, lease_end, status, properties(name)"),
-      supabase.from("payments").select("payment_date, amount, tenants(name)"),
+      offlineDb.select("tenants", { userId: uid, columns: "name, unit_number, lease_start, lease_end, status, properties(name)" }),
+      offlineDb.select("payments", { userId: uid, columns: "payment_date, amount, tenants(name)" }),
     ]);
     const events: { [date: string]: { type: "lease" | "payment" | "due"; label: string }[] } = {};
     const today = new Date();
@@ -410,7 +396,7 @@ export default function DashboardScreen() {
         }
       >
         <WebContainer maxWidth={1200}>
-        {isOffline && (
+        {!isOnline && (
           <View style={{ backgroundColor: "#EF4444", paddingVertical: 8, paddingHorizontal: 16, flexDirection: "row", alignItems: "center", justifyContent: "center" }}>
             <Text style={{ color: "#fff", fontSize: 13, fontWeight: "600" }}>📡 {t("offlineMode")}</Text>
           </View>

@@ -5,7 +5,8 @@ import {
 } from "react-native";
 import { showAlert, crossAlert } from "../lib/alert";
 import { router } from "expo-router";
-import { supabase } from "../lib/supabase";
+import * as offlineDb from "../lib/offlineDb";
+import { useAuth } from "../context/AuthContext";
 import { useLanguage, TKey } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -78,6 +79,7 @@ interface ReportData {
 }
 
 export default function ReportsScreen() {
+  const { user } = useAuth();
   const { t, isRTL, lang } = useLanguage();
   const { colors: C, shadow } = useTheme();
   const { hasFeature } = useSubscription();
@@ -97,10 +99,22 @@ export default function ReportsScreen() {
     try {
       const { startDate, endDate, monthYear } = getDateRange(selectedMonth);
       const [{ data: props }, { data: payments }, { data: expenses }, { data: tenants }] = await Promise.all([
-        supabase.from("properties").select("id, name"),
-        supabase.from("payments").select("*").gte("payment_date", startDate).lte("payment_date", endDate).not("property_id", "is", null),
-        supabase.from("expenses").select("*").gte("date", startDate).lte("date", endDate),
-        supabase.from("tenants").select("id, name, monthly_rent, property_id, lease_start, lease_end, payment_frequency, status, properties!inner(name)").eq("status", "active"),
+        offlineDb.select("properties", { userId: user?.id, columns: "id, name" }),
+        offlineDb.select("payments", {
+          userId: user?.id,
+          gte: { payment_date: startDate },
+          lte: { payment_date: endDate },
+        }),
+        offlineDb.select("expenses", {
+          userId: user?.id,
+          gte: { date: startDate },
+          lte: { date: endDate },
+        }),
+        offlineDb.select("tenants", {
+          userId: user?.id,
+          columns: "id, name, monthly_rent, property_id, lease_start, lease_end, payment_frequency, status, properties!inner(name)",
+          eq: { status: "active" },
+        }),
       ]);
 
       const allPayments = payments || [];

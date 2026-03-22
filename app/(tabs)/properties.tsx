@@ -11,7 +11,7 @@ let Location: typeof import("expo-location") | null = null;
 if (!isWeb) {
   Location = require("expo-location");
 }
-import { supabase } from "../../lib/supabase";
+import * as offlineDb from "../../lib/offlineDb";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { SwipeableRow, SwipeableRowRef } from "../../components/SwipeableRow";
@@ -25,6 +25,7 @@ import { spacing, radii } from "../../constants/theme";
 import { useSubscription, FREE_LIMITS } from "../../context/SubscriptionContext";
 import WebContainer, { useResponsive } from "../../components/WebContainer";
 import { modalBackdropStyle, ModalOverlay, webContentClickStop } from "../../components/WebDateInput";
+import { useNetwork } from "../../context/NetworkContext";
 
 type PropertyType = "apartment" | "villa" | "commercial" | "shop";
 const CITIES = ["alkharj", "riyadh", "jeddah", "dammam"];
@@ -91,6 +92,7 @@ export default function PropertiesScreen() {
   const insets = useSafeAreaInsets();
   const uid = user?.id ?? "";
   const S = useMemo(() => styles(C, shadow, isRTL), [C, shadow, isRTL]);
+  const { refreshPendingCount } = useNetwork();
 
   const [properties, setProperties] = useState<Property[]>([]);
   const [loading, setLoading] = useState(true);
@@ -185,14 +187,16 @@ export default function PropertiesScreen() {
   async function fetchProperties() {
     setLoading(true);
     const [{ data: propData }, { data: tenantData }] = await Promise.all([
-      supabase.from("properties").select("*").order("created_at", { ascending: false }),
-      supabase.from("tenants").select("property_id, monthly_rent").eq("status", "active").not("property_id", "is", null),
+      offlineDb.select("properties", { userId: uid, order: { column: "created_at", ascending: false } }),
+      offlineDb.select("tenants", { userId: uid, columns: "property_id,monthly_rent", eq: { status: "active" } }),
     ]);
-    if (propData) setProperties(propData);
+    if (propData) setProperties(propData as Property[]);
     // Build income map from active tenant rents
     const incMap: Record<string, number> = {};
-    for (const tn of (tenantData ?? [])) {
-      incMap[tn.property_id] = (incMap[tn.property_id] ?? 0) + (tn.monthly_rent ?? 0);
+    for (const tn of ((tenantData as any[]) ?? [])) {
+      if (tn.property_id) {
+        incMap[tn.property_id] = (incMap[tn.property_id] ?? 0) + (tn.monthly_rent ?? 0);
+      }
     }
     setTenantIncomeByProp(incMap);
     setLoading(false);
@@ -222,7 +226,7 @@ export default function PropertiesScreen() {
     setAddPropErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setSaving(true);
-    const { error } = await supabase.from("properties").insert([{
+    const { error } = await offlineDb.insert("properties", uid, {
       name: form.name.trim(), type: form.type, city: form.city,
       total_units: parseInt(form.total_units) || 1,
       floors: parseInt(form.floors) || 1,
@@ -234,12 +238,13 @@ export default function PropertiesScreen() {
       has_multiple_nwc: form.has_multiple_nwc,
       latitude: form.latitude,
       longitude: form.longitude,
-    }]);
+    });
     setSaving(false);
     if (error) { xAlert(t("error"), error.message); }
     else {
       setAddVisible(false);
       setForm(EMPTY_FORM);
+      refreshPendingCount();
       fetchProperties();
     }
   }
@@ -283,9 +288,11 @@ export default function PropertiesScreen() {
     setEditPropErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setEditSaving(true);
-    const { error } = await supabase
-      .from("properties")
-      .update({
+    const { error } = await offlineDb.update(
+      "properties",
+      uid,
+      { id: editTarget.id },
+      {
         name: editForm.name.trim(), type: editForm.type, city: editForm.city,
         total_units: parseInt(editForm.total_units) || editTarget.total_units,
         floors: parseInt(editForm.floors) || editTarget.floors,
@@ -297,13 +304,14 @@ export default function PropertiesScreen() {
         has_multiple_nwc: editForm.has_multiple_nwc,
         latitude: editForm.latitude,
         longitude: editForm.longitude,
-      })
-      .eq("id", editTarget.id);
+      }
+    );
     setEditSaving(false);
     if (error) { xAlert(t("error"), error.message); }
     else {
       setEditVisible(false);
       setEditTarget(null);
+      refreshPendingCount();
       fetchProperties();
     }
   }
@@ -317,13 +325,13 @@ export default function PropertiesScreen() {
         {
           text: t("delete"), style: "destructive", onPress: async () => {
             // Set tenants to expired instead of deleting them
-            await supabase
-              .from("tenants")
-              .update({ status: "expired" })
-              .eq("property_id", p.id);
-            const { error } = await supabase.from("properties").delete().eq("id", p.id);
+            await offlineDb.update("tenants", uid, { property_id: p.id }, { status: "expired" });
+            const { error } = await offlineDb.del("properties", uid, { id: p.id });
             if (error) xAlert(t("error"), error.message);
-            else fetchProperties();
+            else {
+              refreshPendingCount();
+              fetchProperties();
+            }
           },
         },
       ]

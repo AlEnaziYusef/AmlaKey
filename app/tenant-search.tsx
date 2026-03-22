@@ -14,7 +14,9 @@ if (!isWeb) {
   DateTimePicker = require("@react-native-community/datetimepicker").default;
 }
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { supabase } from "../lib/supabase";
+import * as offlineDb from "../lib/offlineDb";
+import { useAuth } from "../context/AuthContext";
+import { useNetwork } from "../context/NetworkContext";
 import { useLanguage } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -37,6 +39,8 @@ type EditForm = {
 };
 
 export default function TenantSearchScreen() {
+  const { user } = useAuth();
+  const { refreshPendingCount } = useNetwork();
   const { t, isRTL } = useLanguage();
   const { colors: C, shadow, isDark } = useTheme();
   const insets = useSafeAreaInsets();
@@ -84,11 +88,16 @@ export default function TenantSearchScreen() {
     setLoading(true);
     try {
       const [{ data: tenants, error: te }, { data: props, error: pe }] = await Promise.all([
-        supabase
-          .from("tenants")
-          .select("id, name, phone, unit_number, monthly_rent, status, property_id, lease_start, lease_end, properties(id, name)")
-          .order("name", { ascending: true }),
-        supabase.from("properties").select("id, name").order("name", { ascending: true }),
+        offlineDb.select("tenants", {
+          userId: user?.id,
+          columns: "id, name, phone, unit_number, monthly_rent, status, property_id, lease_start, lease_end, properties(id, name)",
+          order: { column: "name", ascending: true },
+        }),
+        offlineDb.select("properties", {
+          userId: user?.id,
+          columns: "id, name",
+          order: { column: "name", ascending: true },
+        }),
       ]);
       if (te) throw te;
       if (pe) throw pe;
@@ -188,16 +197,17 @@ export default function TenantSearchScreen() {
     setEditSaving(true);
     const leaseEnd = editForm.lease_end;
     const status = leaseEnd && leaseEnd < new Date().toISOString().split("T")[0] ? "expired" : editForm.status;
-    const { error } = await supabase.from("tenants").update({
+    const { error } = await offlineDb.update("tenants", user?.id, { id: editTarget.id }, {
       name: editForm.name.trim(),
       phone: editForm.phone.trim(),
       monthly_rent: parseFloat(editForm.monthly_rent) || 0,
       lease_start: editForm.lease_start || null,
       lease_end: leaseEnd || null,
       status,
-    }).eq("id", editTarget.id);
+    });
     setEditSaving(false);
     if (error) { showAlert(t("error"), error.message); return; }
+    refreshPendingCount();
     setEditTarget(null);
     fetchAll();
   }
@@ -210,9 +220,9 @@ export default function TenantSearchScreen() {
         { text: t("cancel"), style: "cancel" },
         {
           text: t("delete"), style: "destructive", onPress: async () => {
-            const { error } = await supabase.from("tenants").delete().eq("id", item.id);
+            const { error } = await offlineDb.del("tenants", user?.id, { id: item.id });
             if (error) showAlert(t("error"), error.message);
-            else fetchAll();
+            else { refreshPendingCount(); fetchAll(); }
           },
         },
       ]

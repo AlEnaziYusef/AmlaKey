@@ -15,10 +15,11 @@ if (!isWeb) {
   Location = require("expo-location");
 }
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
-import { supabase } from "../../lib/supabase";
+import * as offlineDb from "../../lib/offlineDb";
 import { useLanguage } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { useAuth } from "../../context/AuthContext";
+import { useNetwork } from "../../context/NetworkContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, radii } from "../../constants/theme";
 import { Ionicons } from "@expo/vector-icons";
@@ -65,6 +66,7 @@ export default function PropertyUnitsScreen() {
   const { t, isRTL } = useLanguage();
   const { colors: C, shadow, isDark } = useTheme();
   const { user } = useAuth();
+  const { refreshPendingCount } = useNetwork();
   const { isPro } = useSubscription();
   const insets = useSafeAreaInsets();
   const S = useMemo(() => styles(C, shadow, isRTL), [C, shadow, isRTL]);
@@ -110,8 +112,8 @@ export default function PropertyUnitsScreen() {
   }, []);
 
   async function fetchPropertyDetails() {
-    if (!id) return;
-    const { data } = await supabase.from("properties").select("*").eq("id", id).single();
+    if (!id || !user?.id) return;
+    const { data } = await offlineDb.select("properties", { userId: user.id, eq: { id }, single: true });
     if (data) {
       setPropName(data.name);
       if (data.type) setPropType(data.type as PropertyType);
@@ -175,18 +177,20 @@ export default function PropertyUnitsScreen() {
   }
 
   async function fetchBillCount(type: "sec" | "nwc", account: string): Promise<number> {
-    if (!account.trim()) return 0;
+    if (!account.trim() || !user?.id) return 0;
     const prefix = `${type}_${account.trim()}_`;
-    const { count, error } = await supabase
-      .from("expenses")
-      .select("id", { count: "exact", head: true })
-      .like("bill_ref", `${prefix}%`);
+    const { data, error } = await offlineDb.select("expenses", {
+      userId: user.id,
+      columns: "id",
+      like: { bill_ref: `${prefix}%` },
+      count: "exact",
+    });
     if (error) return 0;
-    return count ?? 0;
+    return Array.isArray(data) ? data.length : 0;
   }
 
   async function deleteBillsForAccount(type: "sec" | "nwc", account: string, onDone: () => void) {
-    if (!account.trim()) return;
+    if (!account.trim() || !user?.id) return;
     const prefix = `${type}_${account.trim()}_`;
     const label = type === "sec" ? t("electricity") ?? "Electricity" : t("water") ?? "Water";
     xAlert(
@@ -198,12 +202,12 @@ export default function PropertyUnitsScreen() {
           text: t("delete") ?? "Delete",
           style: "destructive",
           onPress: async () => {
-            const { error } = await supabase
-              .from("expenses")
-              .delete()
-              .like("bill_ref", `${prefix}%`);
+            const { error } = await offlineDb.del("expenses", user!.id, { bill_ref_like: `${prefix}%` });
             if (error) xAlert(t("error") ?? "Error", error.message);
-            else onDone();
+            else {
+              refreshPendingCount();
+              onDone();
+            }
           },
         },
       ],
@@ -211,10 +215,10 @@ export default function PropertyUnitsScreen() {
   }
 
   async function savePropertyEdit() {
-    if (!id) return;
+    if (!id || !user?.id) return;
     if (!editForm.name.trim()) { xAlert(t("error"), t("nameRequired") ?? "Name required"); return; }
     setEditSaving(true);
-    const { error } = await supabase.from("properties").update({
+    const { error } = await offlineDb.update("properties", user.id, { id }, {
       name: editForm.name.trim(), type: editForm.type, city: editForm.city,
       total_units: parseInt(editForm.total_units) || totalUnits,
       floors: parseInt(editForm.floors) || 1,
@@ -222,10 +226,15 @@ export default function PropertyUnitsScreen() {
       notes: editForm.notes.trim() || null,
       latitude: editForm.latitude,
       longitude: editForm.longitude,
-    }).eq("id", id);
+    });
     setEditSaving(false);
     if (error) { xAlert(t("error"), error.message); }
-    else { setPropName(editForm.name.trim()); setEditModal(false); fetchData(); }
+    else {
+      refreshPendingCount();
+      setPropName(editForm.name.trim());
+      setEditModal(false);
+      fetchData();
+    }
   }
 
   // Edit unit label modal
@@ -238,13 +247,13 @@ export default function PropertyUnitsScreen() {
   const [overdueUnits, setOverdueUnits] = useState<Set<string>>(new Set());
 
   const fetchData = useCallback(async () => {
-    if (!id) return;
+    if (!id || !user?.id) return;
     setLoading(true);
     try {
       const [{ data: tenants }, { data: labels }, { data: payments }] = await Promise.all([
-        supabase.from("tenants").select("id, name, unit_number, status, monthly_rent, lease_start, payment_frequency").eq("property_id", id),
-        supabase.from("unit_labels").select("unit_number, label, sec_account, nwc_account").eq("property_id", id),
-        supabase.from("payments").select("tenant_id, month_year, amount").eq("property_id", id),
+        offlineDb.select("tenants", { userId: user.id, columns: "id, name, unit_number, status, monthly_rent, lease_start, payment_frequency", eq: { property_id: id } }),
+        offlineDb.select("unit_labels", { userId: user.id, columns: "unit_number, label, sec_account, nwc_account", eq: { property_id: id } }),
+        offlineDb.select("payments", { userId: user.id, columns: "tenant_id, month_year, amount", eq: { property_id: id } }),
       ]);
       const tMap: TenantMap = {};
       (tenants ?? []).forEach((t: any) => {
@@ -285,7 +294,7 @@ export default function PropertyUnitsScreen() {
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, user?.id]);
 
   useFocusEffect(useCallback(() => { fetchData(); fetchPropertyDetails(); }, [fetchData]));
 
@@ -343,8 +352,9 @@ export default function PropertyUnitsScreen() {
         setBulkSaving(false);
         return;
       }
-      const { error } = await supabase.from("payments").insert(inserts);
+      const { error } = await offlineDb.insert("payments", user!.id, inserts);
       if (error) throw error;
+      refreshPendingCount();
       setBulkPayModal(false);
       setSelectMode(false);
       setSelectedUnits(new Set());
@@ -364,36 +374,36 @@ export default function PropertyUnitsScreen() {
   }
 
   async function saveLabel() {
-    if (editUnit === null || !id) return;
+    if (editUnit === null || !id || !user?.id) return;
     setSavingLabel(true);
     try {
       const unitKey = String(editUnit);
       const hasLabel = !!labelInput.trim();
       if (hasLabel) {
-        const { error } = await supabase.from("unit_labels").upsert(
+        const { error } = await offlineDb.upsert(
+          "unit_labels",
+          user.id,
           {
             property_id: id,
             unit_number: unitKey,
             label: labelInput.trim() || null,
-            user_id: user?.id,
+            user_id: user.id,
           },
-          { onConflict: "property_id,unit_number" }
+          "property_id,unit_number"
         );
         if (error) {
           xAlert(t("error"), error.message);
           return;
         }
+        refreshPendingCount();
       } else {
         // Remove label if everything is empty
-        const { error } = await supabase
-          .from("unit_labels")
-          .delete()
-          .eq("property_id", id)
-          .eq("unit_number", unitKey);
+        const { error } = await offlineDb.del("unit_labels", user.id, { property_id: id, unit_number: unitKey });
         if (error) {
           xAlert(t("error"), error.message);
           return;
         }
+        refreshPendingCount();
       }
       // Re-fetch from DB to ensure label is persisted correctly
       await fetchData();

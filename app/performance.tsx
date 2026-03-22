@@ -5,7 +5,8 @@ import {
 } from "react-native";
 import { crossAlert } from "../lib/alert";
 import { router, useLocalSearchParams } from "expo-router";
-import { supabase } from "../lib/supabase";
+import * as offlineDb from "../lib/offlineDb";
+import { useAuth } from "../context/AuthContext";
 import { useLanguage, TKey } from "../context/LanguageContext";
 import { isPaymentDueInMonth } from "../lib/dateUtils";
 import { useTheme } from "../context/ThemeContext";
@@ -76,6 +77,7 @@ function calcTenantRevenue(tn: any, monthYears: string[]): number {
 /* ── component ── */
 export default function PerformanceScreen() {
   const { tab } = useLocalSearchParams<{ tab: string }>();
+  const { user } = useAuth();
   const { t, isRTL } = useLanguage();
   const { colors: C, shadow } = useTheme();
   const { hasFeature } = useSubscription();
@@ -98,29 +100,38 @@ export default function PerformanceScreen() {
     setLoading(true);
     const { startDate, endDate, monthYears } = getDateRange(selectedMonth);
 
-    let propsQ = supabase.from("properties").select("id, name");
-    let tenantsQ = supabase.from("tenants")
-      .select("id, name, unit_number, property_id, monthly_rent, lease_start, lease_end, status, payment_frequency, properties!inner(name)")
-      .eq("status", "active");
-    let paysQ = supabase.from("payments")
-      .select("id, amount, month_year, payment_date, tenant_id, property_id, created_at, tenants!inner(name, unit_number, properties!inner(name))")
-      .gte("month_year", monthYears[0])
-      .lte("month_year", monthYears[monthYears.length - 1])
-      .order("created_at", { ascending: false });
-    let expsQ = supabase.from("expenses")
-      .select("id, category, amount, date, description, property_id, created_at, properties(name)")
-      .gte("date", startDate)
-      .lte("date", endDate)
-      .order("date", { ascending: false });
-
+    const tenantsEq: Record<string, any> = { status: "active" };
+    const paysEq: Record<string, any> = {};
+    const expsEq: Record<string, any> = {};
     if (propertyFilter !== "all") {
-      tenantsQ = tenantsQ.eq("property_id", propertyFilter);
-      paysQ = paysQ.eq("property_id", propertyFilter);
-      expsQ = expsQ.eq("property_id", propertyFilter);
+      tenantsEq.property_id = propertyFilter;
+      paysEq.property_id = propertyFilter;
+      expsEq.property_id = propertyFilter;
     }
 
     const [{ data: props }, { data: tenants }, { data: pays }, { data: exps }] = await Promise.all([
-      propsQ, tenantsQ, paysQ, expsQ,
+      offlineDb.select("properties", { userId: user?.id, columns: "id, name" }),
+      offlineDb.select("tenants", {
+        userId: user?.id,
+        columns: "id, name, unit_number, property_id, monthly_rent, lease_start, lease_end, status, payment_frequency, properties!inner(name)",
+        eq: tenantsEq,
+      }),
+      offlineDb.select("payments", {
+        userId: user?.id,
+        columns: "id, amount, month_year, payment_date, tenant_id, property_id, created_at, tenants!inner(name, unit_number, properties!inner(name))",
+        gte: { month_year: monthYears[0] },
+        lte: { month_year: monthYears[monthYears.length - 1] },
+        order: { column: "created_at", ascending: false },
+        ...(Object.keys(paysEq).length > 0 ? { eq: paysEq } : {}),
+      }),
+      offlineDb.select("expenses", {
+        userId: user?.id,
+        columns: "id, category, amount, date, description, property_id, created_at, properties(name)",
+        gte: { date: startDate },
+        lte: { date: endDate },
+        order: { column: "date", ascending: false },
+        ...(Object.keys(expsEq).length > 0 ? { eq: expsEq } : {}),
+      }),
     ]);
 
     setProperties(props ?? []);
@@ -131,7 +142,7 @@ export default function PerformanceScreen() {
     // Overdue computation — uses selected month filter
     {
       const targetMonth = monthYears[0]; // e.g. "2026-03"
-      const { data: monthPays } = await supabase.from("payments").select("tenant_id, amount").eq("month_year", targetMonth).not("property_id", "is", null);
+      const { data: monthPays } = await offlineDb.select("payments", { userId: user?.id, columns: "tenant_id, amount", eq: { month_year: targetMonth } });
       const paidByTenantMap = new Map<string, number>();
       for (const p of (monthPays ?? [])) {
         paidByTenantMap.set(p.tenant_id, (paidByTenantMap.get(p.tenant_id) ?? 0) + (p.amount ?? 0));
