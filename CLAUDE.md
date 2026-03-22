@@ -63,3 +63,20 @@ Several components have `.web.tsx` variants alongside their native `.tsx` counte
 ### Subscription / Monetization
 
 RevenueCat (`react-native-purchases`) with feature flags checked via `SubscriptionContext`. Web version has a separate stub that defaults to free tier behavior.
+
+## Obsidian Memory
+
+Claude's persistent memory lives in `~/Documents/Obsidian Vault/Claude Memory/`. Read from and write to this folder to remember things across conversations.
+
+- `User/` — User profile, preferences, expertise
+- `Projects/` — Ongoing work, goals, decisions
+- `Feedback/` — Behavioral guidance (what to do / avoid)
+- `References/` — External resource pointers
+
+At the start of a conversation, check relevant memory files. When you learn something worth remembering, write it as a markdown file with `tags: [claude-memory]` frontmatter. The user can browse and edit memories in Obsidian.
+
+## Agent Routing
+
+Before starting any task, automatically select the best specialist agent from `~/.claude/agents/`. Read the full agent file and adopt its persona, expertise, and approach for the task.
+
+Use `~/.claude/agents/router.md` for the full catalog of available agents and routing instructions.
