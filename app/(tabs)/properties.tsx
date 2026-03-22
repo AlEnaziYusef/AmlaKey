@@ -36,6 +36,7 @@ interface Property {
   sec_account?: string; nwc_account?: string;
   has_multiple_sec?: boolean; has_multiple_nwc?: boolean;
   latitude?: number | null; longitude?: number | null;
+  owner_name?: string; owner_phone?: string;
 }
 
 type FormState = {
@@ -44,6 +45,7 @@ type FormState = {
   sec_account: string; nwc_account: string;
   has_multiple_sec: boolean; has_multiple_nwc: boolean;
   latitude: number | null; longitude: number | null;
+  owner_name: string; owner_phone: string;
 };
 
 const EMPTY_FORM: FormState = {
@@ -52,6 +54,7 @@ const EMPTY_FORM: FormState = {
   sec_account: "", nwc_account: "",
   has_multiple_sec: false, has_multiple_nwc: false,
   latitude: null, longitude: null,
+  owner_name: "", owner_phone: "",
 };
 
 const TYPE_COLORS: Record<PropertyType, string> = {
@@ -238,6 +241,8 @@ export default function PropertiesScreen() {
       has_multiple_nwc: form.has_multiple_nwc,
       latitude: form.latitude,
       longitude: form.longitude,
+      owner_name: form.owner_name.trim() || null,
+      owner_phone: form.owner_phone.trim() || null,
     });
     setSaving(false);
     if (error) { xAlert(t("error"), error.message); }
@@ -259,6 +264,7 @@ export default function PropertiesScreen() {
       sec_account: p.sec_account ?? "", nwc_account: p.nwc_account ?? "",
       has_multiple_sec: p.has_multiple_sec ?? false, has_multiple_nwc: p.has_multiple_nwc ?? false,
       latitude: p.latitude ?? null, longitude: p.longitude ?? null,
+      owner_name: p.owner_name ?? "", owner_phone: p.owner_phone ?? "",
     });
     setEditVisible(true);
   }
@@ -304,6 +310,8 @@ export default function PropertiesScreen() {
         has_multiple_nwc: editForm.has_multiple_nwc,
         latitude: editForm.latitude,
         longitude: editForm.longitude,
+        owner_name: editForm.owner_name.trim() || null,
+        owner_phone: editForm.owner_phone.trim() || null,
       }
     );
     setEditSaving(false);
@@ -454,6 +462,11 @@ export default function PropertiesScreen() {
                     <View style={{ flex: 1, marginHorizontal: 8 }}>
                       <Text style={[S.cardName, isRTL && { textAlign: "right" }, isDesktop && { fontSize: 16 }]}>{p.name}</Text>
                       <Text style={[S.cardCity, isRTL && { textAlign: "right" }]}>{p.city}</Text>
+                      {!!p.owner_name && (
+                        <Text style={[S.cardCity, isRTL && { textAlign: "right" }, { marginTop: 1 }]} numberOfLines={1}>
+                          {isRTL ? `\u{1F464} ${t("owner") ?? "المالك"}: ${p.owner_name}` : `\u{1F464} Owner: ${p.owner_name}`}
+                        </Text>
+                      )}
                       {!!p.notes && (
                         <Text style={[S.cardNotes, isRTL && { textAlign: "right" }]} numberOfLines={1}>
                           📝 {p.notes}
@@ -527,6 +540,14 @@ export default function PropertiesScreen() {
                       placeholder={t("city")} placeholderTextColor={C.textMuted}
                       value={form.city} onChangeText={(v) => setForm({ ...form, city: v })} />
                   )}
+                  <Text style={S.fieldLabel}>{isRTL ? "المالك" : "Owner"}</Text>
+                  <TextInput style={[S.input, isRTL && { textAlign: "right" }]}
+                    placeholder={isRTL ? "اسم المالك (اختياري)" : "Owner Name (optional)"} placeholderTextColor={C.textMuted}
+                    value={form.owner_name} onChangeText={(v) => setForm({ ...form, owner_name: v })} />
+                  <TextInput style={[S.input, isRTL && { textAlign: "right" }]}
+                    placeholder={isRTL ? "هاتف المالك (اختياري)" : "Owner Phone (optional)"} placeholderTextColor={C.textMuted}
+                    keyboardType="phone-pad"
+                    value={form.owner_phone} onChangeText={(v) => setForm({ ...form, owner_phone: v })} />
                   <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 6 }}>
                     <TextInput style={[S.input, { flex: 1 }, !!addPropErrors.units && S.inputError]} placeholder={t("totalUnits")}
                       placeholderTextColor={C.textMuted} keyboardType="numeric" returnKeyType="done"
@@ -606,6 +627,14 @@ export default function PropertiesScreen() {
                       placeholder={t("city")} placeholderTextColor={C.textMuted}
                       value={editForm.city} onChangeText={(v) => setEditForm({ ...editForm, city: v })} />
                   )}
+                  <Text style={S.fieldLabel}>{isRTL ? "المالك" : "Owner"}</Text>
+                  <TextInput style={[S.input, isRTL && { textAlign: "right" }]}
+                    placeholder={isRTL ? "اسم المالك (اختياري)" : "Owner Name (optional)"} placeholderTextColor={C.textMuted}
+                    value={editForm.owner_name} onChangeText={(v) => setEditForm({ ...editForm, owner_name: v })} />
+                  <TextInput style={[S.input, isRTL && { textAlign: "right" }]}
+                    placeholder={isRTL ? "هاتف المالك (اختياري)" : "Owner Phone (optional)"} placeholderTextColor={C.textMuted}
+                    keyboardType="phone-pad"
+                    value={editForm.owner_phone} onChangeText={(v) => setEditForm({ ...editForm, owner_phone: v })} />
                   <View style={{ flexDirection: isRTL ? "row-reverse" : "row", gap: 6 }}>
                     <TextInput style={[S.input, { flex: 1 }, !!editPropErrors.units && S.inputError]} placeholder={t("totalUnits")}
                       placeholderTextColor={C.textMuted} keyboardType="numeric" returnKeyType="done"

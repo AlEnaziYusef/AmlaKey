@@ -68,7 +68,7 @@ function amountDueInMonth(tn: any, monthStr: string): number {
 }
 
 interface ReportData {
-  properties: { id: string; name: string }[];
+  properties: { id: string; name: string; total_units: number }[];
   payments: any[];
   expenses: any[];
   tenants: any[];
@@ -99,9 +99,10 @@ export default function ReportsScreen() {
     try {
       const { startDate, endDate, monthYear } = getDateRange(selectedMonth);
       const [{ data: props }, { data: payments }, { data: expenses }, { data: tenants }] = await Promise.all([
-        offlineDb.select("properties", { userId: user?.id, columns: "id, name" }),
+        offlineDb.select("properties", { userId: user?.id, columns: "id, name, total_units" }),
         offlineDb.select("payments", {
           userId: user?.id,
+          columns: "id, amount, payment_date, tenant_id, tenants!inner(name, property_id, properties!inner(name))",
           gte: { payment_date: startDate },
           lte: { payment_date: endDate },
         }),
@@ -274,26 +275,44 @@ export default function ReportsScreen() {
     const periodLabel = getMonthLabels(lang).find(ml => ml.month === selectedMonth)?.label ?? "";
     const dir = isRTL ? "rtl" : "ltr";
     const align = isRTL ? "right" : "left";
+    const { monthYear } = getDateRange(selectedMonth);
+    const currency = t("sar");
+    const fmt = (n: number) => `${n.toLocaleString()} ${currency}`;
 
     let html = `<!DOCTYPE html><html dir="${dir}"><head><meta charset="utf-8"/>
     <style>
-      body { font-family: -apple-system, Arial, sans-serif; padding: 32px; direction: ${dir}; color: #1a1a1a; }
-      .header-row { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
+      * { box-sizing: border-box; }
+      body { font-family: -apple-system, 'Segoe UI', Arial, sans-serif; padding: 0; margin: 0; direction: ${dir}; color: #1a1a1a; font-size: 13px; line-height: 1.5; }
+      .top-bar { height: 4px; background: linear-gradient(90deg, #0EA5E9, #0D9488); }
+      .content { padding: 32px; }
+      .header-row { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
       .logo { width: 56px; height: 56px; border-radius: 12px; }
-      .header-text h1 { font-size: 22px; margin: 0 0 2px 0; }
+      .header-text h1 { font-size: 22px; font-weight: 700; margin: 0 0 2px 0; color: #111827; }
       .header-text .subtitle { color: #6B7280; font-size: 13px; margin: 0; }
-      h2 { font-size: 16px; color: #6B7280; margin-top: 24px; margin-bottom: 8px; border-bottom: 1px solid #E5E7EB; padding-bottom: 6px; }
-      .stats { display: flex; gap: 12px; margin-bottom: 20px; }
-      .stat { flex: 1; background: #F9FAFB; border-radius: 8px; padding: 12px; text-align: center; border-top: 3px solid #0EA5E9; }
+      h2 { font-size: 16px; font-weight: 700; color: #374151; margin-top: 28px; margin-bottom: 10px; border-bottom: 2px solid #E5E7EB; padding-bottom: 6px; }
+      .stats { display: flex; gap: 12px; margin-bottom: 24px; }
+      .stat { flex: 1; background: linear-gradient(135deg, #F9FAFB 0%, #F0F4F8 100%); border-radius: 10px; padding: 14px; text-align: center; border-top: 3px solid #0EA5E9; }
       .stat-value { font-size: 20px; font-weight: 800; }
-      .stat-label { font-size: 11px; color: #6B7280; margin-top: 4px; }
-      .green { color: #22C55E; border-top-color: #22C55E; }
-      .red { color: #EF4444; border-top-color: #EF4444; }
-      table { width: 100%; border-collapse: collapse; margin-top: 8px; }
-      th { background: #F3F4F6; text-align: ${align}; padding: 8px 10px; font-size: 12px; color: #6B7280; }
-      td { padding: 8px 10px; border-bottom: 1px solid #F3F4F6; font-size: 13px; }
-      .footer { margin-top: 32px; text-align: center; color: #9CA3AF; font-size: 11px; }
+      .stat-label { font-size: 11px; color: #6B7280; margin-top: 4px; font-weight: 600; }
+      .green { color: #16A34A; border-top-color: #16A34A; }
+      .red { color: #DC2626; border-top-color: #DC2626; }
+      .blue { color: #0EA5E9; border-top-color: #0EA5E9; }
+      table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 13px; }
+      th { background: #F1F5F9; text-align: ${align}; padding: 10px 12px; font-size: 12px; font-weight: 700; color: #475569; border-bottom: 2px solid #E2E8F0; }
+      td { padding: 9px 12px; border-bottom: 1px solid #F1F5F9; font-size: 13px; }
+      tr:nth-child(even) td { background: #F8FAFC; }
+      tr:nth-child(odd) td { background: #FFFFFF; }
+      .overdue-section h2 { color: #DC2626; border-bottom-color: #FECACA; }
+      .overdue-section td { color: #991B1B; }
+      .overdue-section tr:nth-child(even) td { background: #FEF2F2; }
+      .overdue-section tr:nth-child(odd) td { background: #FFFBFB; }
+      .footer { margin-top: 36px; padding-top: 16px; border-top: 1px solid #E5E7EB; text-align: center; color: #9CA3AF; font-size: 11px; line-height: 1.8; }
+      .footer .confidential { font-weight: 700; color: #6B7280; }
     </style></head><body>`;
+
+    // Gradient top bar
+    html += `<div class="top-bar"></div>`;
+    html += `<div class="content">`;
 
     // Header with logo
     html += `<div class="header-row">`;
@@ -310,14 +329,15 @@ export default function ReportsScreen() {
     // Stats
     html += `<div class="stats">`;
     if (reportType === "revenue" || reportType === "full") {
-      html += `<div class="stat green"><div class="stat-value green">${data.totalCollected.toLocaleString()}</div><div class="stat-label">${t("totalCollected")}</div></div>`;
+      html += `<div class="stat green"><div class="stat-value green">${fmt(data.totalCollected)}</div><div class="stat-label">${t("totalCollected")}</div></div>`;
+      html += `<div class="stat blue"><div class="stat-value blue">${fmt(data.totalRevenue)}</div><div class="stat-label">${t("expectedRevenue")}</div></div>`;
     }
     if (reportType === "expenses" || reportType === "full") {
-      html += `<div class="stat red"><div class="stat-value red">${data.totalExpenses.toLocaleString()}</div><div class="stat-label">${t("totalExpensesLabel")}</div></div>`;
+      html += `<div class="stat red"><div class="stat-value red">${fmt(data.totalExpenses)}</div><div class="stat-label">${t("totalExpensesLabel")}</div></div>`;
     }
     if (reportType === "full") {
       const nc = data.netIncome >= 0 ? "green" : "red";
-      html += `<div class="stat ${nc}"><div class="stat-value ${nc}">${data.netIncome.toLocaleString()}</div><div class="stat-label">${t("netIncomeLabel")}</div></div>`;
+      html += `<div class="stat ${nc}"><div class="stat-value ${nc}">${fmt(data.netIncome)}</div><div class="stat-label">${t("netIncomeLabel")}</div></div>`;
     }
     html += `</div>`;
 
@@ -327,7 +347,34 @@ export default function ReportsScreen() {
       html += `<table><tr><th>${t("columnTenant")}</th><th>${t("columnProperty")}</th><th>${t("columnRent")}</th></tr>`;
       data.tenants.forEach((ten: any) => {
         const prop = data.properties.find(p => p.id === ten.property_id);
-        html += `<tr><td>${ten.name}</td><td>${prop?.name || ""}</td><td>${ten.monthly_rent.toLocaleString()} ${t("sar")}</td></tr>`;
+        html += `<tr><td>${ten.name}</td><td>${prop?.name || (ten.properties?.name ?? "")}</td><td>${fmt(ten.monthly_rent ?? 0)}</td></tr>`;
+      });
+      html += `</table>`;
+    }
+
+    // Revenue by Property breakdown (revenue + full)
+    if ((reportType === "revenue" || reportType === "full") && data.properties.length > 0) {
+      html += `<h2>${t("revenueByProperty")}</h2>`;
+      html += `<table><tr><th>${t("columnProperty")}</th><th>${t("columnUnits")}</th><th>${t("columnMonthlyRevenue")}</th><th>${t("columnOccupancyRate")}</th></tr>`;
+      data.properties.forEach((prop) => {
+        const propTenants = data.tenants.filter((tn: any) => tn.property_id === prop.id);
+        const monthlyRevenue = propTenants.reduce((s: number, tn: any) => s + amountDueInMonth(tn, monthYear), 0);
+        const totalUnits = prop.total_units || 1;
+        const occupiedUnits = propTenants.length;
+        const occupancyPct = Math.round((occupiedUnits / totalUnits) * 100);
+        html += `<tr><td>${prop.name}</td><td>${occupiedUnits} / ${totalUnits}</td><td>${fmt(monthlyRevenue)}</td><td>${occupancyPct}%</td></tr>`;
+      });
+      html += `</table>`;
+    }
+
+    // Recent Payments (revenue + full)
+    if ((reportType === "revenue" || reportType === "full") && data.payments.length > 0) {
+      html += `<h2>${t("recentPayments")}</h2>`;
+      html += `<table><tr><th>${t("columnTenant")}</th><th>${t("columnAmount")}</th><th>${t("columnDate")}</th><th>${t("columnProperty")}</th></tr>`;
+      data.payments.forEach((pay: any) => {
+        const tenantName = pay.tenants?.name ?? "—";
+        const propName = pay.tenants?.properties?.name ?? "—";
+        html += `<tr><td>${tenantName}</td><td>${fmt(pay.amount ?? 0)}</td><td>${pay.payment_date || "—"}</td><td>${propName}</td></tr>`;
       });
       html += `</table>`;
     }
@@ -337,13 +384,68 @@ export default function ReportsScreen() {
       html += `<h2>${t("expenses")}</h2>`;
       html += `<table><tr><th>${t("columnDescription")}</th><th>${t("columnCategory")}</th><th>${t("columnDate")}</th><th>${t("columnAmount")}</th></tr>`;
       data.expenses.forEach((exp: any) => {
-        html += `<tr><td>${exp.description || "—"}</td><td>${exp.category || ""}</td><td>${exp.date || ""}</td><td>${exp.amount.toLocaleString()} ${t("sar")}</td></tr>`;
+        html += `<tr><td>${exp.description || "—"}</td><td>${exp.category || ""}</td><td>${exp.date || ""}</td><td>${fmt(exp.amount ?? 0)}</td></tr>`;
       });
       html += `</table>`;
     }
 
-    html += `<div class="footer">${t("reportFooter")}</div>`;
-    html += `</body></html>`;
+    // Occupancy Summary (full report only)
+    if (reportType === "full" && data.properties.length > 0) {
+      html += `<h2>${t("occupancySummary")}</h2>`;
+      html += `<table><tr><th>${t("columnProperty")}</th><th>${t("columnTotalUnits")}</th><th>${t("columnOccupied")}</th><th>${t("columnVacant")}</th><th>${t("columnOccupancyRate")}</th></tr>`;
+      data.properties.forEach((prop) => {
+        const occupiedUnits = data.tenants.filter((tn: any) => tn.property_id === prop.id).length;
+        const totalUnits = prop.total_units || 1;
+        const vacant = totalUnits - occupiedUnits;
+        const pct = Math.round((occupiedUnits / totalUnits) * 100);
+        html += `<tr><td>${prop.name}</td><td>${totalUnits}</td><td>${occupiedUnits}</td><td>${vacant}</td><td>${pct}%</td></tr>`;
+      });
+      html += `</table>`;
+    }
+
+    // Overdue Payments (full report only)
+    if (reportType === "full") {
+      // Compute overdue: tenants whose expected rent exceeds collected payments
+      const overdueTenants = data.tenants.filter((tn: any) => {
+        const due = amountDueInMonth(tn, monthYear);
+        if (due <= 0) return false;
+        const paid = data.payments
+          .filter((p: any) => p.tenant_id === tn.id)
+          .reduce((s: number, p: any) => s + (p.amount || 0), 0);
+        return paid < due;
+      }).map((tn: any) => {
+        const due = amountDueInMonth(tn, monthYear);
+        const paid = data.payments
+          .filter((p: any) => p.tenant_id === tn.id)
+          .reduce((s: number, p: any) => s + (p.amount || 0), 0);
+        const prop = data.properties.find(p => p.id === tn.property_id);
+        return { name: tn.name, property: prop?.name || (tn.properties?.name ?? ""), overdue: due - paid };
+      });
+
+      if (overdueTenants.length > 0) {
+        html += `<div class="overdue-section">`;
+        html += `<h2>${t("overduePayments")}</h2>`;
+        html += `<table><tr><th>${t("columnTenant")}</th><th>${t("columnProperty")}</th><th>${t("columnOverdueAmount")}</th></tr>`;
+        overdueTenants.forEach((ot) => {
+          html += `<tr><td>${ot.name}</td><td>${ot.property}</td><td>${fmt(ot.overdue)}</td></tr>`;
+        });
+        html += `</table></div>`;
+      }
+    }
+
+    // Footer with date/time and confidential notice
+    const now = new Date();
+    const genDateTime = now.toLocaleDateString(lang === "ar" ? "ar-SA" : "en-US", {
+      year: "numeric", month: "long", day: "numeric",
+      hour: "2-digit", minute: "2-digit",
+    });
+    html += `<div class="footer">`;
+    html += `<div>${t("reportFooter")}</div>`;
+    html += `<div>${t("generatedOn")}: ${genDateTime}</div>`;
+    html += `<div class="confidential">${t("reportConfidential")}</div>`;
+    html += `</div>`;
+
+    html += `</div></body></html>`;
     return html;
   }
 

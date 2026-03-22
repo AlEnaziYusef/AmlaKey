@@ -5,6 +5,7 @@ import {
   KeyboardAvoidingView,
   Modal,
   Platform,
+  RefreshControl,
   ScrollView,
   StyleSheet,
   Text,
@@ -38,6 +39,10 @@ import { userKey, EJAR_IMPORT_KEY } from "../../lib/storage";
 import WebContainer from "../../components/WebContainer";
 import { WebDateInput, modalBackdropStyle, ModalOverlay, webContentClickStop } from "../../components/WebDateInput";
 import { getDuePeriodMonth } from "../../lib/dateUtils";
+import {
+  buildEjarSyncUrl, EJAR_EXTRACT_JS, processEjarSyncResult,
+  shouldSyncEjar, markEjarSynced, EjarSyncTenant, EjarSyncResult,
+} from "../../lib/ejarSync";
 
 type TenantStatus = "active" | "expired";
 type FilterType = "all" | TenantStatus;
@@ -55,6 +60,9 @@ interface Tenant {
   lease_end: string;
   status: TenantStatus;
   payment_frequency?: string;
+  hijri_dob?: string;
+  ejar_last_sync?: string;
+  ejar_contract_status?: string;
   properties?: { name: string };
 }
 
@@ -131,6 +139,7 @@ export default function TenantsScreen() {
     name: "", phone: "", national_id: "", contract_number: "",
     property_id: "", unit_number: "",
     monthly_rent: "", lease_start: "", lease_end: "",
+    hijri_dob: "",
   });
 
   // Ejar import billing data for auto-generating payment records
@@ -142,9 +151,11 @@ export default function TenantsScreen() {
   // Ejar background sync state
   const [ejarSyncUrl, setEjarSyncUrl] = useState<string | null>(null);
   const [ejarSyncQueue, setEjarSyncQueue] = useState<Tenant[]>([]);
+  const [ejarSyncActive, setEjarSyncActive] = useState(false);
   const ejarSyncing = useRef(false);
   const hasSyncedEjar = useRef(false);
   const ejarWebViewRef = useRef<any>(null);
+  const ejarSyncResults = useRef<EjarSyncResult[]>([]);
 
   // Swipeable gesture refs — track open rows so we can auto-close them
   const swipeRefs = useRef<Map<string, SwipeableRowRef | null>>(new Map());
@@ -180,6 +191,7 @@ export default function TenantsScreen() {
           monthly_rent: d.rent || "",
           lease_start: d.lease_start || "",
           lease_end: d.lease_end || "",
+          hijri_dob: d.hijri_dob || "",
         });
         if (d.lease_start) {
           setLeaseStartDate(new Date(d.lease_start + "T12:00:00"));
@@ -214,60 +226,32 @@ export default function TenantsScreen() {
   }
 
   /* ── Ejar background sync ── */
-  const REGA_DETAIL_BASE = "https://rega.gov.sa/en/rega-services/real-estate-enquiries/result-page/%D8%AA%D9%81%D8%A7%D8%B5%D9%8A%D9%84-%D8%B9%D9%82%D8%AF-%D8%A7%D9%84%D8%A5%D9%8A%D8%AC%D8%A7%D8%B1/";
 
-  const EJAR_EXTRACT_JS = `
-(function() {
-  try {
-    var data = {};
-    var allText = document.body.innerText || "";
-    var cards = document.querySelectorAll('.card-body, .card');
-    cards.forEach(function(card) {
-      var text = card.innerText || "";
-      if (text.indexOf("المعلومات المالية") >= 0) {
-        var amountM = text.match(/(\\d[\\d,.]+)\\s*ريال/);
-        if (amountM) data.totalAmount = parseFloat(amountM[1].replace(/,/g, ""));
-        if (text.indexOf("شهري") >= 0) data.paymentType = "monthly";
-        else if (text.indexOf("ربع سنوي") >= 0) data.paymentType = "quarterly";
-        else if (text.indexOf("نصف سنوي") >= 0) data.paymentType = "semi-annual";
-        else data.paymentType = "annual";
-      }
-    });
-    var billsM = allText.match(/الفواتير\\s*(\\d+)/);
-    data.billCount = billsM ? parseInt(billsM[1]) : 0;
-    var unpaidMatches = allText.match(/غير مدفوعة/g);
-    data.unpaidBills = unpaidMatches ? unpaidMatches.length : 0;
-    window.ReactNativeWebView.postMessage(JSON.stringify({ success: true, data: data }));
-  } catch(e) {
-    window.ReactNativeWebView.postMessage(JSON.stringify({ error: e.message }));
-  }
-})();
-true;
-`;
-
-  async function backgroundSyncEjarPayments() {
-    if (isWeb) return; // WebView not available on web
+  async function backgroundSyncEjarPayments(force = false) {
+    if (isWeb) return;
     if (ejarSyncing.current) return;
+    if (!force && !(await shouldSyncEjar(uid))) return;
     ejarSyncing.current = true;
+    setEjarSyncActive(true);
+    ejarSyncResults.current = [];
     try {
-      // Find all active tenants with contract_number + national_id (imported from Ejar)
       const { data: ejarTenants } = await supabase
         .from("tenants")
-        .select("id, national_id, contract_number, property_id, lease_start, monthly_rent, payment_frequency")
+        .select("id, name, national_id, contract_number, hijri_dob, property_id, lease_start, monthly_rent, payment_frequency, status, ejar_contract_status")
         .not("contract_number", "is", null)
-        .not("national_id", "is", null)
-        .eq("status", "active");
+        .not("national_id", "is", null);
 
       if (!ejarTenants || ejarTenants.length === 0) {
         ejarSyncing.current = false;
+        setEjarSyncActive(false);
         return;
       }
 
       setEjarSyncQueue(ejarTenants as Tenant[]);
-      // Start processing first tenant — the rest will be processed in onEjarSyncMessage
       processNextEjarTenant(ejarTenants as Tenant[]);
     } catch {
       ejarSyncing.current = false;
+      setEjarSyncActive(false);
     }
   }
 
@@ -276,12 +260,21 @@ true;
       setEjarSyncUrl(null);
       setEjarSyncQueue([]);
       ejarSyncing.current = false;
-      fetchAll(); // Refresh list after sync
+      setEjarSyncActive(false);
+      markEjarSynced(uid);
+      // Show sync summary
+      const results = ejarSyncResults.current;
+      if (results.length > 0) {
+        const unpaidCount = results.filter(r => r.unpaidBills > 0).length;
+        const changedCount = results.filter(r => r.statusChanged).length;
+        const msg = `${results.length} ${t("ejarSynced")}${unpaidCount > 0 ? `. ${unpaidCount} ${t("ejarNewUnpaid")}` : ""}${changedCount > 0 ? `. ${changedCount} ${t("ejarStatusChanged")}` : ""}`;
+        showAlert(t("ejarSyncComplete"), msg);
+      }
+      fetchAll();
       return;
     }
     const tenant = queue[0];
-    const url = `${REGA_DETAIL_BASE}?id_number=${tenant.national_id}&contract_number=${tenant.contract_number}&major_version=1&minor_version=0`;
-    setEjarSyncUrl(url);
+    setEjarSyncUrl(buildEjarSyncUrl(tenant as EjarSyncTenant));
   }
 
   async function onEjarSyncMessage(event: any) {
@@ -292,52 +285,12 @@ true;
       setEjarSyncQueue(remaining);
 
       if (result.success && result.data && currentTenant) {
-        const { billCount, unpaidBills, totalAmount, paymentType } = result.data;
-        if (billCount > 0 && totalAmount > 0) {
-          const paidCount = billCount - (unpaidBills || 0);
-
-          // Count existing payments for this tenant
-          const { count: existingCount } = await supabase
-            .from("payments")
-            .select("id", { count: "exact", head: true })
-            .eq("tenant_id", currentTenant.id);
-
-          const newPaidCount = paidCount - (existingCount || 0);
-          if (newPaidCount > 0 && currentTenant.lease_start) {
-            const perBillAmount = totalAmount / billCount;
-            const intervalMap: Record<string, number> = {
-              "monthly": 1, "quarterly": 3, "semi-annual": 6, "annual": 12,
-            };
-            const interval = intervalMap[paymentType] || 1;
-            const payments = [];
-            const start = new Date(currentTenant.lease_start + "T12:00:00");
-
-            // Generate only the NEW payments (skip already recorded ones)
-            for (let i = existingCount || 0; i < paidCount; i++) {
-              const payDate = new Date(start);
-              payDate.setMonth(payDate.getMonth() + i * interval);
-              const dateStr = payDate.toISOString().split("T")[0];
-              const monthYear = getDuePeriodMonth(currentTenant.lease_start, currentTenant.payment_frequency, payDate);
-              payments.push({
-                tenant_id: currentTenant.id,
-                property_id: currentTenant.property_id,
-                amount: Math.round(perBillAmount * 100) / 100,
-                payment_date: dateStr,
-                month_year: monthYear,
-              });
-            }
-
-            if (payments.length > 0) {
-              await supabase.from("payments").insert(payments);
-            }
-          }
-        }
+        const syncResult = await processEjarSyncResult(currentTenant as EjarSyncTenant, result.data);
+        ejarSyncResults.current.push(syncResult);
       }
 
-      // Process next tenant
       processNextEjarTenant(remaining);
     } catch {
-      // Skip failed tenant, continue with next
       const remaining = ejarSyncQueue.slice(1);
       setEjarSyncQueue(remaining);
       processNextEjarTenant(remaining);
@@ -373,6 +326,7 @@ true;
       phone: form.phone.trim(),
       national_id: form.national_id.trim(),
       contract_number: form.contract_number?.trim() || null,
+      hijri_dob: form.hijri_dob?.trim() || null,
       property_id: form.property_id || null,
       unit_number: form.unit_number.trim(),
       monthly_rent: parseFloat(form.monthly_rent) || 0,
@@ -421,7 +375,7 @@ true;
       }
 
       setModalVisible(false);
-      setForm({ name: "", phone: "", national_id: "", contract_number: "", property_id: "", unit_number: "", monthly_rent: "", lease_start: "", lease_end: "" });
+      setForm({ name: "", phone: "", national_id: "", contract_number: "", property_id: "", unit_number: "", monthly_rent: "", lease_start: "", lease_end: "", hijri_dob: "" });
       setLeaseStartDate(new Date());
       setLeaseEndDate(new Date());
       setHasLeaseEnd(false);
@@ -555,7 +509,10 @@ true;
       <View style={S.container}>
         <WebContainer maxWidth={1000}>
         <View style={[S.header, { paddingTop: insets.top + 10 }, isRTL && S.rowRev]}>
-          <Text style={S.headerTitle}>{t("tenants")}</Text>
+          <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 8 }}>
+            <Text style={S.headerTitle}>{t("tenants")}</Text>
+            {ejarSyncActive && <ActivityIndicator size="small" color={C.accent} />}
+          </View>
           <TouchableOpacity style={S.addBtn} onPress={() => setAddChoiceVisible(true)} accessibilityRole="button" accessibilityLabel={t("addTenant")}>
             <Text style={S.addBtnText}>+ {t("add")}</Text>
           </TouchableOpacity>
@@ -601,6 +558,14 @@ true;
           <ScrollView
             contentContainerStyle={{ paddingBottom: 100 }}
             keyboardShouldPersistTaps="handled"
+            refreshControl={
+              <RefreshControl
+                refreshing={ejarSyncActive}
+                onRefresh={() => { fetchAll(); backgroundSyncEjarPayments(true); }}
+                tintColor={C.accent}
+                title={ejarSyncActive ? t("ejarSyncing") : undefined}
+              />
+            }
             onScrollBeginDrag={() => {
               // Close any open swipe row when user starts scrolling
               if (openSwipeId.current) {
@@ -675,10 +640,19 @@ true;
                         {tenant.properties?.name ?? ""} {tenant.unit_number ? `· ${tenant.unit_number}` : ""}
                       </Text>
                     </View>
-                    <View style={[S.statusBadge, { backgroundColor: tenant.status === "active" ? "#22C55E20" : "#EF444420" }]}>
-                      <Text style={[S.statusText, { color: tenant.status === "active" ? "#22C55E" : "#EF4444" }]}>
-                        {t(tenant.status)}
-                      </Text>
+                    <View style={{ flexDirection: isRTL ? "row-reverse" : "row", alignItems: "center", gap: 6 }}>
+                      {tenant.ejar_last_sync && (
+                        <View style={[S.statusBadge, { backgroundColor: tenant.ejar_contract_status?.toLowerCase().includes("expired") || tenant.ejar_contract_status?.includes("منتهي") ? "#F59E0B20" : "#0EA5E920" }]}>
+                          <Text style={[S.statusText, { color: tenant.ejar_contract_status?.toLowerCase().includes("expired") || tenant.ejar_contract_status?.includes("منتهي") ? "#F59E0B" : "#0EA5E9" }]}>
+                            {t("ejarVerified")} ✓
+                          </Text>
+                        </View>
+                      )}
+                      <View style={[S.statusBadge, { backgroundColor: tenant.status === "active" ? "#22C55E20" : "#EF444420" }]}>
+                        <Text style={[S.statusText, { color: tenant.status === "active" ? "#22C55E" : "#EF4444" }]}>
+                          {t(tenant.status)}
+                        </Text>
+                      </View>
                     </View>
                   </View>
                   <View style={S.divider} />
@@ -1169,7 +1143,7 @@ true;
             ref={ejarWebViewRef}
             source={{ uri: ejarSyncUrl }}
             style={{ height: 0, width: 0, position: "absolute", top: -1000 }}
-            injectedJavaScript={EJAR_EXTRACT_JS}
+            injectedJavaScript={EJAR_EXTRACT_JS as string}
             onMessage={onEjarSyncMessage}
             onError={() => {
               // Skip failed tenant, continue with next

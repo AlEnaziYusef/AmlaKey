@@ -20,3 +20,5 @@ export const NOTIFICATION_HISTORY_KEY = "amlaky_notification_history";
 export const LAST_BACKUP_KEY = "amlaky_last_backup";
 export const EJAR_IMPORT_KEY = "ejar_import";
 export const BIOMETRIC_LOCK_KEY = "amlaky_biometric_lock";
+export const EJAR_SYNC_RESULTS_KEY = "ejar_sync_results";
+export const EJAR_SYNC_COOLDOWN_KEY = "ejar_sync_cooldown";

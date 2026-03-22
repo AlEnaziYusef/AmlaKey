@@ -107,6 +107,7 @@ export default function DashboardScreen() {
   const [expenses, setExpenses] = useState(0);
   const [totalUnits, setTotalUnits] = useState(0);
   const [occupiedUnits, setOccupiedUnits] = useState(0);
+  const [vacancyCost, setVacancyCost] = useState(0);
   const [tenantCounts, setTenantCounts] = useState({ total: 0, active: 0, expired: 0 });
   const [propertyOccs, setPropertyOccs] = useState<PropertyOcc[]>([]);
   const [updates, setUpdates] = useState<Update[]>([]);
@@ -149,7 +150,7 @@ export default function DashboardScreen() {
       { data: expData }, { data: payByTenant },
       { data: recentTenants }, { data: recentPayments }, { data: recentExpenses },
     ] = await Promise.all([
-      offlineDb.select("properties", { userId: uid, columns: "id, name, total_units" }),
+      offlineDb.select("properties", { userId: uid, columns: "id, name, total_units, monthly_income" }),
       offlineDb.select("tenants", { userId: uid, columns: "id, name, unit_number, property_id, monthly_rent, lease_start, lease_end, payment_frequency, phone, properties!inner(name)", eq: { status: "active" } }),
       offlineDb.select("tenants", { userId: uid, columns: "id, status" }),
       offlineDb.select("expenses", { userId: uid, columns: "amount, date, properties!inner(id)", gte: { date: `${thisMonth}-01` }, lte: { date: `${thisMonth}-31` } }),
@@ -205,6 +206,12 @@ export default function DashboardScreen() {
       id: p.id, name: p.name, total_units: p.total_units,
       occupied: leaseActiveTenants.filter((tn: any) => tn.property_id === p.id).length,
     })));
+
+    // Compute vacancy cost — monthly_income is annual, so divide by 12
+    const totalMonthlyIncome = (props ?? []).reduce((s: number, p: any) => s + ((p.monthly_income ?? 0) / 12), 0);
+    const vacantUnits = units - leaseActiveTenants.length;
+    const avgRentPerUnit = units > 0 ? totalMonthlyIncome / units : 0;
+    setVacancyCost(vacantUnits > 0 ? vacantUnits * avgRentPerUnit : 0);
 
     // Compute unpaid tenants — any tenant whose payment is due this month and hasn't fully paid
     const today = new Date();
@@ -562,6 +569,24 @@ export default function DashboardScreen() {
               </View>
             </TouchableOpacity>
           </View>
+
+          {/* Vacancy Cost Card */}
+          {vacancyCost > 0 && (
+            <View style={[S.statsRow, { marginBottom: 12 }]}>
+              <View style={[S.statCardFull, isDesktop && S.statCardDesktop, { borderTopColor: "#F97316" }]}>
+                <View style={[{ flexDirection: "row", alignItems: "center", gap: 8 }, isRTL && S.rowRev]}>
+                  <Text style={{ fontSize: isDesktop ? 24 : 20, marginBottom: 4 }}>{"\uD83C\uDFDA\uFE0F"}</Text>
+                  <View style={{ flex: 1 }}>
+                    <Text style={[S.statLabel, { fontSize: isDesktop ? 14 : 12 }]}>{isRTL ? "تكلفة الشغور الشهرية" : "Monthly Vacancy Cost"}</Text>
+                    <Text style={[S.statValLg, { color: "#F97316" }, isDesktop && { fontSize: 28 }]}>{Math.round(vacancyCost).toLocaleString()}</Text>
+                    <Text style={[S.statSub, isDesktop && { fontSize: 12 }]}>
+                      {t("sar")} - {totalUnits - occupiedUnits} {isRTL ? "وحدات شاغرة" : "vacant units"}
+                    </Text>
+                  </View>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* Lease Expiry Warning */}
           {expiringLeaseCount > 0 && (

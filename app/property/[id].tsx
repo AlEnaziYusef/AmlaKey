@@ -32,7 +32,7 @@ type TenantMap = Record<string, { id: string; name: string; status: string; mont
 type LabelMap = Record<string, string>;
 type PropertyType = "apartment" | "villa" | "commercial" | "shop";
 const CITIES = ["alkharj", "riyadh", "jeddah", "dammam"];
-type EditForm = { name: string; type: PropertyType; city: string; total_units: string; floors: string; monthly_income: string; notes: string; sec_account: string; nwc_account: string; has_multiple_sec: boolean; has_multiple_nwc: boolean; latitude: number | null; longitude: number | null; };
+type EditForm = { name: string; type: PropertyType; city: string; total_units: string; floors: string; monthly_income: string; notes: string; sec_account: string; nwc_account: string; has_multiple_sec: boolean; has_multiple_nwc: boolean; latitude: number | null; longitude: number | null; owner_name: string; owner_phone: string; };
 type UnitAccountMap = Record<string, { sec_account?: string; nwc_account?: string }>;
 const TYPE_COLORS: Record<PropertyType, string> = { apartment: "#0EA5E9", villa: "#14B8A6", commercial: "#F59E0B", shop: "#A855F7" };
 const TYPE_ICONS: Record<PropertyType, string> = { apartment: "🏢", villa: "🏡", commercial: "🏗️", shop: "🛍️" };
@@ -80,7 +80,7 @@ export default function PropertyUnitsScreen() {
 
   // Property edit modal
   const [editModal, setEditModal] = useState(false);
-  const [editForm, setEditForm] = useState<EditForm>({ name: name ?? "", type: "apartment", city: "alkharj", total_units: total_units ?? "1", floors: "1", monthly_income: "0", notes: "", sec_account: "", nwc_account: "", has_multiple_sec: false, has_multiple_nwc: false, latitude: null, longitude: null });
+  const [editForm, setEditForm] = useState<EditForm>({ name: name ?? "", type: "apartment", city: "alkharj", total_units: total_units ?? "1", floors: "1", monthly_income: "0", notes: "", sec_account: "", nwc_account: "", has_multiple_sec: false, has_multiple_nwc: false, latitude: null, longitude: null, owner_name: "", owner_phone: "" });
   const [editSaving, setEditSaving] = useState(false);
   const [propName, setPropName] = useState(name ?? "");
   // Bill counts for delete buttons
@@ -117,7 +117,7 @@ export default function PropertyUnitsScreen() {
     if (data) {
       setPropName(data.name);
       if (data.type) setPropType(data.type as PropertyType);
-      setEditForm({ name: data.name, type: data.type ?? "apartment", city: data.city ?? "alkharj", total_units: String(data.total_units ?? 1), floors: String(data.floors ?? 1), monthly_income: String(data.monthly_income ?? 0), notes: data.notes ?? "", sec_account: data.sec_account ?? "", nwc_account: data.nwc_account ?? "", has_multiple_sec: data.has_multiple_sec ?? false, has_multiple_nwc: data.has_multiple_nwc ?? false, latitude: data.latitude ?? null, longitude: data.longitude ?? null });
+      setEditForm({ name: data.name, type: data.type ?? "apartment", city: data.city ?? "alkharj", total_units: String(data.total_units ?? 1), floors: String(data.floors ?? 1), monthly_income: String(data.monthly_income ?? 0), notes: data.notes ?? "", sec_account: data.sec_account ?? "", nwc_account: data.nwc_account ?? "", has_multiple_sec: data.has_multiple_sec ?? false, has_multiple_nwc: data.has_multiple_nwc ?? false, latitude: data.latitude ?? null, longitude: data.longitude ?? null, owner_name: data.owner_name ?? "", owner_phone: data.owner_phone ?? "" });
     }
   }
 
@@ -226,6 +226,8 @@ export default function PropertyUnitsScreen() {
       notes: editForm.notes.trim() || null,
       latitude: editForm.latitude,
       longitude: editForm.longitude,
+      owner_name: editForm.owner_name.trim() || null,
+      owner_phone: editForm.owner_phone.trim() || null,
     });
     setEditSaving(false);
     if (error) { xAlert(t("error"), error.message); }
@@ -450,6 +452,12 @@ export default function PropertyUnitsScreen() {
                 ? t("tapOccupiedToSelect")
                 : `${totalUnits} ${t("allUnits")}`}
             </Text>
+            {!selectMode && editForm.owner_name ? (
+              <Text style={[S.headerSub, isRTL && { textAlign: "right" }, { fontSize: 12, marginTop: 2 }]} numberOfLines={1}>
+                {isRTL ? `المالك: ${editForm.owner_name}` : `Owner: ${editForm.owner_name}`}
+                {editForm.owner_phone ? ` \u00B7 ${editForm.owner_phone}` : ""}
+              </Text>
+            ) : null}
           </View>
 
           {/* Edit property button */}
@@ -863,6 +871,26 @@ export default function PropertyUnitsScreen() {
                   keyboardType="numeric"
                   textAlign={isRTL ? "right" : "left"}
                   placeholderTextColor={C.textMuted}
+                />
+
+                {/* Owner */}
+                <Text style={S.editFieldLabel}>{isRTL ? "المالك" : "Owner"}</Text>
+                <TextInput
+                  style={S.editInput}
+                  value={editForm.owner_name}
+                  onChangeText={(v) => setEditForm((f) => ({ ...f, owner_name: v }))}
+                  placeholder={isRTL ? "اسم المالك (اختياري)" : "Owner Name (optional)"}
+                  placeholderTextColor={C.textMuted}
+                  textAlign={isRTL ? "right" : "left"}
+                />
+                <TextInput
+                  style={S.editInput}
+                  value={editForm.owner_phone}
+                  onChangeText={(v) => setEditForm((f) => ({ ...f, owner_phone: v }))}
+                  placeholder={isRTL ? "هاتف المالك (اختياري)" : "Owner Phone (optional)"}
+                  placeholderTextColor={C.textMuted}
+                  keyboardType="phone-pad"
+                  textAlign={isRTL ? "right" : "left"}
                 />
 
                 {/* Notes */}
