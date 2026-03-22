@@ -24,11 +24,12 @@ if (!isWeb) {
 }
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { supabase } from "../lib/supabase";
+import * as offlineDb from "../lib/offlineDb";
 import { useLanguage } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
 import { useNotification } from "../context/NotificationContext";
 import { useAuth } from "../context/AuthContext";
+import { useNetwork } from "../context/NetworkContext";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { spacing, radii } from "../constants/theme";
 import { formatDualDate, getDuePeriodMonth } from "../lib/dateUtils";
@@ -92,6 +93,7 @@ export default function UnitDetailScreen() {
   const { addNotification, settings: notifSettings } = useNotification();
   const { user } = useAuth();
   const { isPro } = useSubscription();
+  const { refreshPendingCount } = useNetwork();
   const insets = useSafeAreaInsets();
   const S = useMemo(() => styles(C, shadow, isRTL), [C, shadow, isRTL]);
   const [unitDocs, setUnitDocs] = useState<VaultDocument[]>([]);
@@ -188,11 +190,11 @@ export default function UnitDetailScreen() {
     if (!tenantId) return;
     setLoadingTenant(true);
     try {
-      const { data, error } = await supabase
-        .from("tenants")
-        .select("*")
-        .eq("id", tenantId)
-        .single();
+      const { data, error } = await offlineDb.select("tenants", {
+        userId: uid,
+        eq: { id: tenantId },
+        single: true,
+      });
       if (error) throw error;
       setTenant(data);
     } catch (e) {
@@ -202,17 +204,18 @@ export default function UnitDetailScreen() {
     } finally {
       setLoadingTenant(false);
     }
-  }, [tenantId]);
+  }, [tenantId, uid]);
 
   const fetchPayments = useCallback(async () => {
     if (!tenantId) return;
     setLoadingPayments(true);
     try {
-      const { data, error } = await supabase
-        .from("payments")
-        .select("id, amount, payment_date, month_year")
-        .eq("tenant_id", tenantId)
-        .order("payment_date", { ascending: false });
+      const { data, error } = await offlineDb.select("payments", {
+        userId: uid,
+        columns: "id, amount, payment_date, month_year",
+        eq: { tenant_id: tenantId },
+        order: { column: "payment_date", ascending: false },
+      });
       if (error) throw error;
       setPayments(data ?? []);
     } catch (e) {
@@ -220,23 +223,22 @@ export default function UnitDetailScreen() {
     } finally {
       setLoadingPayments(false);
     }
-  }, [tenantId]);
+  }, [tenantId, uid]);
 
   const fetchPreviousTenants = useCallback(async () => {
     if (!propertyId || !unitNumber) return;
     try {
-      const { data } = await supabase
-        .from("tenants")
-        .select("id, name, phone, unit_number, monthly_rent, lease_start, lease_end, status, payment_frequency")
-        .eq("property_id", propertyId)
-        .eq("unit_number", unitNumber)
-        .eq("status", "expired")
-        .order("lease_end", { ascending: false });
+      const { data } = await offlineDb.select("tenants", {
+        userId: uid,
+        columns: "id, name, phone, unit_number, monthly_rent, lease_start, lease_end, status, payment_frequency",
+        eq: { property_id: propertyId, unit_number: unitNumber, status: "expired" },
+        order: { column: "lease_end", ascending: false },
+      });
       setPreviousTenants(data ?? []);
     } catch (e) {
       if (__DEV__) console.error("fetchPreviousTenants error:", e);
     }
-  }, [propertyId, unitNumber]);
+  }, [propertyId, unitNumber, uid]);
 
   useFocusEffect(
     useCallback(() => {
@@ -312,20 +314,19 @@ export default function UnitDetailScreen() {
         leaseEnd && leaseEnd < new Date().toISOString().split("T")[0]
           ? "expired"
           : "active";
-      const { error } = await supabase.from("tenants").insert([
-        {
-          property_id: propertyId,
-          unit_number: unitNumber,
-          name: form.name.trim(),
-          phone: form.phone.trim(),
-          monthly_rent: parseFloat(form.monthly_rent) || 0,
-          lease_start: form.lease_start || null,
-          lease_end: leaseEnd || null,
-          payment_frequency: form.payment_frequency,
-          status,
-        },
-      ]);
+      const { error } = await offlineDb.insert("tenants", uid, {
+        property_id: propertyId,
+        unit_number: unitNumber,
+        name: form.name.trim(),
+        phone: form.phone.trim(),
+        monthly_rent: parseFloat(form.monthly_rent) || 0,
+        lease_start: form.lease_start || null,
+        lease_end: leaseEnd || null,
+        payment_frequency: form.payment_frequency,
+        status,
+      });
       if (error) throw error;
+      await refreshPendingCount();
       setShowAddModal(false);
       setForm(EMPTY_FORM);
       router.back();
@@ -353,21 +354,20 @@ export default function UnitDetailScreen() {
         tenant?.payment_frequency,
         payDate,
       );
-      const { error } = await supabase.from("payments").insert([
-        {
-          tenant_id: resolvedTenantId,
-          property_id: resolvedPropertyId,
-          amount: parseFloat(payAmount),
-          payment_date: payDate,
-          month_year: monthYear,
-        },
-      ]);
+      const { error } = await offlineDb.insert("payments", uid, {
+        tenant_id: resolvedTenantId,
+        property_id: resolvedPropertyId,
+        amount: parseFloat(payAmount),
+        payment_date: payDate,
+        month_year: monthYear,
+      });
       if (error) {
         if (isWeb) window.alert(`${t("error")}: ${error.message}`);
         else showAlert(t("error"), error.message);
         setSavingPay(false);
         return;
       }
+      await refreshPendingCount();
       // Fire instant payment notification
       if (notifSettings.paymentConfirmationEnabled && tenant) {
         addNotification({
@@ -465,8 +465,9 @@ export default function UnitDetailScreen() {
     const doEnd = async () => {
       setEndingLease(true);
       try {
-        const { error } = await supabase.from("tenants").update({ status: "expired" }).eq("id", resolvedId);
+        const { error } = await offlineDb.update("tenants", uid, { id: resolvedId }, { status: "expired" });
         if (error) throw error;
+        await refreshPendingCount();
         fetchTenant();
       } catch (e: any) {
         if (isWeb) window.alert(e.message);
@@ -505,11 +506,9 @@ export default function UnitDetailScreen() {
       const updates: Record<string, string> = { lease_end: renewLeaseEnd };
       // Set lease_start to current lease_end (start of new term)
       if (tenant?.lease_end) updates.lease_start = tenant.lease_end;
-      const { error } = await supabase
-        .from("tenants")
-        .update(updates)
-        .eq("id", resolvedId);
+      const { error } = await offlineDb.update("tenants", uid, { id: resolvedId }, updates);
       if (error) throw error;
+      await refreshPendingCount();
       setShowRenewModal(false);
       if (isWeb) window.alert(t("leaseRenewed"));
       else showAlert("✅", t("leaseRenewed"));
@@ -564,7 +563,7 @@ export default function UnitDetailScreen() {
     try {
       const leaseEnd = editTenantForm.lease_end;
       const status = leaseEnd && leaseEnd < new Date().toISOString().split("T")[0] ? "expired" : "active";
-      const { error } = await supabase.from("tenants").update({
+      const { error } = await offlineDb.update("tenants", uid, { id: tenant.id }, {
         name: editTenantForm.name.trim(),
         phone: editTenantForm.phone.trim(),
         monthly_rent: parseFloat(editTenantForm.monthly_rent) || 0,
@@ -572,8 +571,9 @@ export default function UnitDetailScreen() {
         lease_end: leaseEnd,
         payment_frequency: editTenantForm.payment_frequency,
         status,
-      }).eq("id", tenant.id);
+      });
       if (error) throw error;
+      await refreshPendingCount();
       setShowEditTenantModal(false);
       fetchTenant();
     } catch (e: any) {
@@ -603,12 +603,13 @@ export default function UnitDetailScreen() {
     try {
       const d = new Date(editPayDate);
       const monthYear = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-      const { error } = await supabase.from("payments").update({
+      const { error } = await offlineDb.update("payments", uid, { id: editPayment.id }, {
         amount: parseFloat(editPayAmount),
         payment_date: editPayDate,
         month_year: monthYear,
-      }).eq("id", editPayment.id);
+      });
       if (error) throw error;
+      await refreshPendingCount();
       setEditPayModal(false);
       setEditPayment(null);
       fetchPayments();

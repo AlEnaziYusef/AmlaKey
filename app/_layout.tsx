@@ -9,6 +9,7 @@ import { ThemeProvider, useTheme } from "../context/ThemeContext";
 import { LanguageProvider, useLanguage } from "../context/LanguageContext";
 import { NotificationProvider } from "../context/NotificationContext";
 import { SubscriptionProvider } from "../context/SubscriptionContext";
+import { NetworkProvider } from "../context/NetworkContext";
 import { userKey, BIOMETRIC_LOCK_KEY } from "../lib/storage";
 import BiometricGate from "../components/BiometricGate";
 
@@ -260,11 +261,13 @@ function ThemedRoot() {
       <StatusBar style={isDark ? "light" : "dark"} />
       <LanguageProvider>
         <AuthProvider>
-          <SubscriptionProvider>
-            <NotificationProvider>
-              <RootNavigator />
-            </NotificationProvider>
-          </SubscriptionProvider>
+          <NetworkProvider>
+            <SubscriptionProvider>
+              <NotificationProvider>
+                <RootNavigator />
+              </NotificationProvider>
+            </SubscriptionProvider>
+          </NetworkProvider>
         </AuthProvider>
       </LanguageProvider>
     </GestureHandlerRootView>

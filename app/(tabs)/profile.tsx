@@ -14,6 +14,7 @@ import { NotificationSettingsModal } from "../../components/NotificationSettings
 import { exportAllData, importAllData, getLastBackupDate } from "../../lib/backup";
 import { userKey, PERSONAL_INFO_KEY, BIOMETRIC_LOCK_KEY } from "../../lib/storage";
 import { useSubscription } from "../../context/SubscriptionContext";
+import { useNetwork } from "../../context/NetworkContext";
 import WebContainer, { useResponsive } from "../../components/WebContainer";
 
 const isWeb = Platform.OS === "web";
@@ -35,6 +36,7 @@ export default function ProfileScreen() {
   const { colors: C, isDark, toggleTheme, shadow } = useTheme();
   const { user, signOut } = useAuth();
   const { isPro, hasFeature } = useSubscription();
+  const { isOnline, pendingSyncCount, isSyncing, triggerSync } = useNetwork();
   const { isDesktop, isWide } = useResponsive();
   const S = useMemo(() => styles(C, shadow, isDark, isRTL), [C, shadow, isDark, isRTL]);
 
@@ -338,6 +340,29 @@ export default function ProfileScreen() {
         {!isPro && <Text style={{ fontSize: 10, color: C.accent, fontWeight: "700", marginRight: isRTL ? 0 : 8, marginLeft: isRTL ? 8 : 0 }}>PRO</Text>}
         <Text style={{ fontSize: 16, color: C.textMuted }}>{isRTL ? "‹" : "›"}</Text>
       </TouchableOpacity>
+
+      {/* ══════════════ SYNC STATUS ══════════════ */}
+      {(!isOnline || pendingSyncCount > 0) && (
+        <TouchableOpacity
+          style={[S.perfBanner, isRTL && { flexDirection: "row-reverse" }, { marginTop: 8, backgroundColor: !isOnline ? "#FEF3C7" : C.surface }]}
+          onPress={() => isOnline && triggerSync()}
+          activeOpacity={0.7}
+        >
+          <Text style={{ fontSize: 20 }}>{!isOnline ? "📡" : isSyncing ? "🔄" : "☁️"}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={[S.perfText, isRTL && { textAlign: "right" }, !isOnline && { color: "#92400E" }]}>
+              {!isOnline
+                ? t("offlineMode")
+                : isSyncing
+                ? t("syncing")
+                : `${pendingSyncCount} ${t("pendingSync")}`}
+            </Text>
+          </View>
+          {isOnline && !isSyncing && pendingSyncCount > 0 && (
+            <Text style={{ fontSize: 12, color: C.accent, fontWeight: "700" }}>{t("syncing").replace("...", "")}</Text>
+          )}
+        </TouchableOpacity>
+      )}
 
       {/* ══════════════ ABOUT & HELP ══════════════ */}
       <View style={[S.card, { marginTop: 16 }]}>

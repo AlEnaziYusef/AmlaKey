@@ -24,7 +24,8 @@ if (!isWeb) {
   DateTimePicker = require("@react-native-community/datetimepicker").default;
 }
 import { useFocusEffect } from "expo-router";
-import { supabase } from "../../lib/supabase";
+import * as offlineDb from "../../lib/offlineDb";
+import { useNetwork } from "../../context/NetworkContext";
 import { fetchSECBill, SECBillResult } from "../../lib/sec";
 import { fetchNWCBill } from "../../lib/nwc";
 import { useLanguage, TKey } from "../../context/LanguageContext";
@@ -120,6 +121,7 @@ export default function ExpensesScreen() {
   const { colors: C, shadow, isDark } = useTheme();
   const { user } = useAuth();
   const uid = user?.id ?? "";
+  const { refreshPendingCount } = useNetwork();
   const { isDesktop, isWide } = useResponsive();
   const insets = useSafeAreaInsets();
   const S = useMemo(() => styles(C, shadow), [C, shadow]);
@@ -228,8 +230,15 @@ export default function ExpensesScreen() {
   async function fetchAll() {
     setLoading(true);
     const [{ data: eData }, { data: pData }] = await Promise.all([
-      supabase.from("expenses").select("*, properties(name)").order("date", { ascending: false }),
-      supabase.from("properties").select("id, name, sec_account, nwc_account, has_multiple_sec, has_multiple_nwc, total_units"),
+      offlineDb.select<Expense[]>("expenses", {
+        userId: uid,
+        columns: "*, properties(name)",
+        order: { column: "date", ascending: false },
+      }),
+      offlineDb.select<Property[]>("properties", {
+        userId: uid,
+        columns: "id, name, sec_account, nwc_account, has_multiple_sec, has_multiple_nwc, total_units",
+      }),
     ]);
     // Filter out soft-deleted utility bills (bill_ref starts with "dismissed_")
     if (eData) setExpenses((eData as Expense[]).filter(e => !e.bill_ref?.startsWith("dismissed_")));
@@ -243,9 +252,10 @@ export default function ExpensesScreen() {
     setSyncing(true);
     try {
       // Load all properties with their accounts
-      const { data: props } = await supabase
-        .from("properties")
-        .select("id, name, sec_account, nwc_account, has_multiple_sec, has_multiple_nwc, total_units");
+      const { data: props } = await offlineDb.select<Property[]>("properties", {
+        userId: uid,
+        columns: "id, name, sec_account, nwc_account, has_multiple_sec, has_multiple_nwc, total_units",
+      });
 
       const allAccounts: IntegrationAccount[] = [];
 
@@ -253,7 +263,7 @@ export default function ExpensesScreen() {
         const accountField = type === "sec" ? "sec_account" : "nwc_account";
         const multipleField = type === "sec" ? "has_multiple_sec" : "has_multiple_nwc";
 
-        for (const p of props ?? []) {
+        for (const p of (props ?? []) as Record<string, any>[]) {
           const hasMultiple = p[multipleField];
           const propAccount = p[accountField];
 
@@ -263,10 +273,11 @@ export default function ExpensesScreen() {
               accountNumber: propAccount, type, status: "idle",
             });
           } else if (hasMultiple) {
-            const { data: labels } = await supabase
-              .from("unit_labels")
-              .select(`unit_number, ${accountField}`)
-              .eq("property_id", p.id);
+            const { data: labels } = await offlineDb.select<Record<string, any>[]>("unit_labels", {
+              userId: uid,
+              columns: `unit_number, ${accountField}`,
+              eq: { property_id: p.id },
+            });
             for (const l of (labels ?? []) as Record<string, any>[]) {
               const acc = l[accountField];
               if (acc) {
@@ -316,10 +327,18 @@ export default function ExpensesScreen() {
 
           // Check if this bill exists (active or dismissed)
           const [{ data: existing }, { data: dismissed }] = await Promise.all([
-            supabase.from("expenses").select("id, amount")
-              .eq("bill_ref", billRef).maybeSingle(),
-            supabase.from("expenses").select("id")
-              .eq("bill_ref", `dismissed_${billRef}`).maybeSingle(),
+            offlineDb.select<{ id: string; amount: number }>("expenses", {
+              userId: uid,
+              columns: "id, amount",
+              eq: { bill_ref: billRef },
+              single: true,
+            }),
+            offlineDb.select<{ id: string }>("expenses", {
+              userId: uid,
+              columns: "id",
+              eq: { bill_ref: `dismissed_${billRef}` },
+              single: true,
+            }),
           ]);
 
           // User explicitly dismissed this bill — never re-create
@@ -327,24 +346,23 @@ export default function ExpensesScreen() {
 
           if (isBillPaid) {
             if (existing) {
-              await supabase.from("expenses")
-                .update({ bill_paid: true })
-                .eq("id", existing.id);
+              await offlineDb.update("expenses", uid, { id: existing.id }, { bill_paid: true });
+              await refreshPendingCount();
             }
             // If no existing and bill is paid, don't create — nothing to charge
             continue;
           }
 
           if (existing) {
-            await supabase.from("expenses")
-              .update({ amount, date: today, description: desc, bill_paid: false })
-              .eq("id", existing.id);
+            await offlineDb.update("expenses", uid, { id: existing.id }, { amount, date: today, description: desc, bill_paid: false });
+            await refreshPendingCount();
           } else {
-            await supabase.from("expenses").insert([{
+            await offlineDb.insert("expenses", uid, [{
               category: acc.type === "sec" ? "electricity" : "water",
               amount, date: today, description: desc,
               property_id: acc.propertyId, bill_ref: billRef, bill_paid: false,
             }]);
+            await refreshPendingCount();
           }
         } catch {
           // Silently skip failed accounts
@@ -365,10 +383,10 @@ export default function ExpensesScreen() {
     try {
       const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
       // Get all recurring expense templates (any month, bill_ref starts with rec_)
-      const { data: recExpenses } = await supabase
-        .from("expenses")
-        .select("*")
-        .like("bill_ref", "rec_%");
+      const { data: recExpenses } = await offlineDb.select<any[]>("expenses", {
+        userId: uid,
+        like: { bill_ref: "rec_%" },
+      });
       if (!recExpenses || recExpenses.length === 0) return;
 
       // Group by base pattern (without month suffix) — find unique recurring patterns
@@ -392,7 +410,7 @@ export default function ExpensesScreen() {
         const exists = recExpenses.some(e => e.bill_ref === currentRef);
         if (!exists) {
           const today = new Date().toISOString().split("T")[0];
-          await supabase.from("expenses").insert([{
+          await offlineDb.insert("expenses", uid, [{
             category: template.category,
             amount: template.amount,
             date: today,
@@ -404,6 +422,7 @@ export default function ExpensesScreen() {
         }
       }
       if (created > 0) {
+        await refreshPendingCount();
         fetchAll();
       }
     } catch {
@@ -425,9 +444,10 @@ export default function ExpensesScreen() {
     const accountField = type === "sec" ? "sec_account" : "nwc_account";
     const multipleField = type === "sec" ? "has_multiple_sec" : "has_multiple_nwc";
 
-    const { data: props } = await supabase
-      .from("properties")
-      .select(`id, name, ${accountField}, ${multipleField}, total_units`);
+    const { data: props } = await offlineDb.select<Record<string, any>[]>("properties", {
+      userId: uid,
+      columns: `id, name, ${accountField}, ${multipleField}, total_units`,
+    });
 
     const accounts: IntegrationAccount[] = [];
 
@@ -444,10 +464,11 @@ export default function ExpensesScreen() {
           status: "idle",
         });
       } else if (hasMultiple) {
-        const { data: labels } = await supabase
-          .from("unit_labels")
-          .select(`unit_number, ${accountField}`)
-          .eq("property_id", p.id);
+        const { data: labels } = await offlineDb.select<Record<string, any>[]>("unit_labels", {
+          userId: uid,
+          columns: `unit_number, ${accountField}`,
+          eq: { property_id: p.id },
+        });
 
         for (const l of (labels ?? []) as Record<string, any>[]) {
           const acc = l[accountField];
@@ -467,14 +488,17 @@ export default function ExpensesScreen() {
 
     // Check which accounts already have a synced bill this month
     const thisMonth = new Date().toISOString().slice(0, 7);
-    const { data: existingBills } = await supabase
-      .from("expenses")
-      .select("id, bill_ref, amount")
-      .like("bill_ref", `${type}_%_${thisMonth}`)
-      .not("bill_ref", "is", null);
+    const { data: existingBillsRaw } = await offlineDb.select<any[]>("expenses", {
+      userId: uid,
+      columns: "id, bill_ref, amount",
+      like: { bill_ref: `${type}_%_${thisMonth}` },
+    });
+
+    // Filter out nulls (offlineDb doesn't support .not() so we do it client-side)
+    const existingBills = (existingBillsRaw ?? []).filter((e: any) => e.bill_ref != null);
 
     const billRefMap = new Map<string, { id: string; amount: number }>();
-    (existingBills ?? []).forEach((e: any) => {
+    existingBills.forEach((e: any) => {
       billRefMap.set(e.bill_ref, { id: e.id, amount: e.amount });
     });
 
@@ -547,17 +571,27 @@ export default function ExpensesScreen() {
 
       // Check if bill already exists (active or dismissed)
       const [{ data: existing }, { data: dismissed }] = await Promise.all([
-        supabase.from("expenses").select("id, amount")
-          .eq("bill_ref", billRef).maybeSingle(),
-        supabase.from("expenses").select("id")
-          .eq("bill_ref", `dismissed_${billRef}`).maybeSingle(),
+        offlineDb.select<{ id: string; amount: number }>("expenses", {
+          userId: uid,
+          columns: "id, amount",
+          eq: { bill_ref: billRef },
+          single: true,
+        }),
+        offlineDb.select<{ id: string }>("expenses", {
+          userId: uid,
+          columns: "id",
+          eq: { bill_ref: `dismissed_${billRef}` },
+          single: true,
+        }),
       ]);
 
       if (dismissed) {
         // User previously dismissed this bill — remove the dismissal and re-fetch
-        await supabase.from("expenses")
-          .update({ bill_ref: billRef, amount, description: desc, bill_paid: false })
-          .eq("id", dismissed.id);
+        const { error } = await offlineDb.update("expenses", uid, { id: dismissed.id }, {
+          bill_ref: billRef, amount, description: desc, bill_paid: false,
+        });
+        if (error) throw error;
+        await refreshPendingCount();
 
         setIntegrationAccounts((prev) =>
           prev.map((a, i) =>
@@ -570,10 +604,11 @@ export default function ExpensesScreen() {
 
       if (existing) {
         // Update existing bill
-        const { error } = await supabase.from("expenses")
-          .update({ amount, date: today, description: desc, bill_paid: false })
-          .eq("id", existing.id);
+        const { error } = await offlineDb.update("expenses", uid, { id: existing.id }, {
+          amount, date: today, description: desc, bill_paid: false,
+        });
         if (error) throw error;
+        await refreshPendingCount();
 
         setIntegrationAccounts((prev) =>
           prev.map((a, i) =>
@@ -583,7 +618,7 @@ export default function ExpensesScreen() {
         return;
       } else {
         // Insert new bill
-        const { error } = await supabase.from("expenses").insert([{
+        const { error } = await offlineDb.insert("expenses", uid, [{
           category: acc.type === "sec" ? "electricity" : "water",
           amount,
           date: today,
@@ -593,6 +628,7 @@ export default function ExpensesScreen() {
           bill_paid: false,
         }]);
         if (error) throw error;
+        await refreshPendingCount();
       }
 
       setIntegrationAccounts((prev) =>
@@ -619,9 +655,9 @@ export default function ExpensesScreen() {
     if (exp.bill_ref && !exp.bill_ref.startsWith("dismissed_")) {
       // Utility bill: soft-delete by prefixing bill_ref so sync won't re-create it.
       // This persists in Supabase so it works across all devices and sessions.
-      const { error } = await supabase.from("expenses")
-        .update({ bill_ref: `dismissed_${exp.bill_ref}`, amount: 0 })
-        .eq("id", exp.id);
+      const { error } = await offlineDb.update("expenses", uid, { id: exp.id }, {
+        bill_ref: `dismissed_${exp.bill_ref}`, amount: 0,
+      });
       if (error) {
         if (isWeb) window.alert(error.message);
         else showAlert(t("error"), error.message);
@@ -629,13 +665,14 @@ export default function ExpensesScreen() {
       }
     } else {
       // Non-utility expense or already dismissed: hard delete
-      const { error } = await supabase.from("expenses").delete().eq("id", exp.id);
+      const { error } = await offlineDb.del("expenses", uid, { id: exp.id });
       if (error) {
         if (isWeb) window.alert(error.message);
         else showAlert(t("error"), error.message);
         return;
       }
     }
+    await refreshPendingCount();
     fetchAll();
   }
 
@@ -653,12 +690,13 @@ export default function ExpensesScreen() {
 
   async function togglePaid(exp: Expense) {
     const newPaid = !exp.bill_paid;
-    const { error } = await supabase.from("expenses").update({ bill_paid: newPaid }).eq("id", exp.id);
+    const { error } = await offlineDb.update("expenses", uid, { id: exp.id }, { bill_paid: newPaid });
     if (error) {
       if (isWeb) window.alert(error.message);
       else showAlert(t("error"), error.message);
       return;
     }
+    await refreshPendingCount();
     setExpenses(prev => prev.map(e => e.id === exp.id ? { ...e, bill_paid: newPaid } : e));
   }
 
@@ -692,21 +730,19 @@ export default function ExpensesScreen() {
     setEditExpErrors(errors);
     if (Object.keys(errors).length > 0) return;
     setEditSaving(true);
-    const { error } = await supabase
-      .from("expenses")
-      .update({
-        category: editForm.category,
-        amount: parseFloat(editForm.amount),
-        date: editForm.date,
-        description: editForm.description.trim(),
-        property_id: editForm.property_id || null,
-      })
-      .eq("id", editTarget.id);
+    const { error } = await offlineDb.update("expenses", uid, { id: editTarget.id }, {
+      category: editForm.category,
+      amount: parseFloat(editForm.amount),
+      date: editForm.date,
+      description: editForm.description.trim(),
+      property_id: editForm.property_id || null,
+    });
     setEditSaving(false);
     if (error) {
       if (isWeb) window.alert(error.message);
       else showAlert(t("error"), error.message);
     } else {
+      await refreshPendingCount();
       setEditModalVisible(false);
       setEditTarget(null);
       fetchAll();
@@ -775,18 +811,21 @@ export default function ExpensesScreen() {
         const isBillPaid = dueAmount === 0;
 
         // Check if bill already exists
-        const { data: existing } = await supabase
-          .from("expenses").select("id, amount")
-          .eq("bill_ref", billRef).maybeSingle();
+        const { data: existing } = await offlineDb.select<{ id: string; amount: number }>("expenses", {
+          userId: uid,
+          columns: "id, amount",
+          eq: { bill_ref: billRef },
+          single: true,
+        });
 
         if (existing) {
           // Update existing bill
-          await supabase.from("expenses")
-            .update({ amount, date: today, description: desc, bill_paid: isBillPaid })
-            .eq("id", existing.id);
+          await offlineDb.update("expenses", uid, { id: existing.id }, {
+            amount, date: today, description: desc, bill_paid: isBillPaid,
+          });
         } else {
           // Insert new bill
-          await supabase.from("expenses").insert([{
+          await offlineDb.insert("expenses", uid, [{
             category: form.category,
             amount, date: today, description: desc,
             property_id: form.property_id, bill_ref: billRef, bill_paid: isBillPaid,
@@ -796,30 +835,31 @@ export default function ExpensesScreen() {
         // Also save the account number to the property for background sync
         if (type === "sec") {
           if (form.unit_number) {
-            await supabase.from("unit_labels").upsert({
+            await offlineDb.upsert("unit_labels", uid, {
               property_id: form.property_id, unit_number: form.unit_number,
               sec_account: accountNumber, user_id: uid,
-            }, { onConflict: "property_id,unit_number" });
-            await supabase.from("properties").update({ has_multiple_sec: true }).eq("id", form.property_id);
+            }, "property_id,unit_number");
+            await offlineDb.update("properties", uid, { id: form.property_id }, { has_multiple_sec: true });
           } else {
-            await supabase.from("properties").update({
+            await offlineDb.update("properties", uid, { id: form.property_id }, {
               sec_account: accountNumber, has_multiple_sec: false,
-            }).eq("id", form.property_id);
+            });
           }
         } else {
           if (form.unit_number) {
-            await supabase.from("unit_labels").upsert({
+            await offlineDb.upsert("unit_labels", uid, {
               property_id: form.property_id, unit_number: form.unit_number,
               nwc_account: accountNumber, user_id: uid,
-            }, { onConflict: "property_id,unit_number" });
-            await supabase.from("properties").update({ has_multiple_nwc: true }).eq("id", form.property_id);
+            }, "property_id,unit_number");
+            await offlineDb.update("properties", uid, { id: form.property_id }, { has_multiple_nwc: true });
           } else {
-            await supabase.from("properties").update({
+            await offlineDb.update("properties", uid, { id: form.property_id }, {
               nwc_account: accountNumber, has_multiple_nwc: false,
-            }).eq("id", form.property_id);
+            });
           }
         }
 
+        await refreshPendingCount();
         setFetchingBill(false);
         setSaving(false);
         setModalVisible(false);
@@ -847,12 +887,13 @@ export default function ExpensesScreen() {
       const monthStr = form.date.slice(0, 7); // YYYY-MM
       insertData.bill_ref = `rec_${form.category}_${form.property_id || "general"}_${monthStr}`;
     }
-    const { error } = await supabase.from("expenses").insert([insertData]);
+    const { error } = await offlineDb.insert("expenses", uid, [insertData]);
     setSaving(false);
     if (error) {
       if (isWeb) window.alert(error.message);
       else showAlert(t("error"), error.message);
     } else {
+      await refreshPendingCount();
       setModalVisible(false);
       resetForm();
       fetchAll();
