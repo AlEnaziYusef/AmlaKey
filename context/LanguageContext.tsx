@@ -1270,27 +1270,33 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   const [initialized, setInitialized] = useState(false);
 
   useEffect(() => {
-    AsyncStorage.getItem("@lang").then((v) => {
+    AsyncStorage.getItem("@lang").then(async (v) => {
       let resolved: Language;
       if (v === "en" || v === "ar") {
         resolved = v;
       } else {
-        // First launch — detect device locale, default to Arabic
+        // First launch — detect device language
         try {
           const locales = getLocales();
           const deviceLang = locales?.[0]?.languageCode;
-          resolved = deviceLang === "en" ? "en" : "ar";
+          resolved = deviceLang === "ar" ? "ar" : "en";
         } catch {
-          resolved = "ar";
+          resolved = "en";
         }
-        AsyncStorage.setItem("@lang", resolved).catch(() => {});
+        await AsyncStorage.setItem("@lang", resolved).catch(() => {});
       }
       setLang(resolved);
-      // Ensure I18nManager RTL state matches the saved language on startup
+
+      // On native, if the I18nManager RTL state doesn't match the language,
+      // fix it and reload BEFORE rendering any children to avoid layout crash.
       if (Platform.OS !== "web") {
         const shouldBeRTL = resolved === "ar";
         if (I18nManager.isRTL !== shouldBeRTL) {
+          I18nManager.allowRTL(shouldBeRTL);
           I18nManager.forceRTL(shouldBeRTL);
+          // Reload immediately — don't render with mismatched RTL state
+          try { await Updates.reloadAsync(); } catch {}
+          // If reload fails, still mark initialized so the app doesn't hang
         }
       }
     }).catch(() => {}).finally(() => setInitialized(true));
@@ -1305,46 +1311,40 @@ export function LanguageProvider({ children }: { children: React.ReactNode }) {
   }, [lang]);
 
   const applyLanguage = async (next: Language) => {
-    const needsRTLChange = Platform.OS !== "web" && I18nManager.isRTL !== (next === "ar");
-    setLang(next);
+    // Save the new language preference
     await AsyncStorage.setItem("@lang", next);
-    if (needsRTLChange) {
-      I18nManager.allowRTL(next === "ar");
-      I18nManager.forceRTL(next === "ar");
-      // I18nManager changes require a reload to take effect
-      if (Updates.isEnabled) {
-        try {
-          await Updates.reloadAsync();
-          return; // reloaded successfully
-        } catch {
-          // reloadAsync failed — fall through to alert
-        }
-      }
-      // Ask user to restart — tapping the button closes the app
-      Alert.alert(
-        next === "ar" ? "أعد تشغيل التطبيق" : "Restart Required",
-        next === "ar"
-          ? "اضغط لإعادة تشغيل التطبيق وتطبيق تغيير اللغة."
-          : "Tap to restart the app and apply the language change.",
-        [
-          {
-            text: next === "ar" ? "أعد التشغيل" : "Restart App",
-            onPress: () => {
-              if (Platform.OS === "android") {
-                BackHandler.exitApp();
-              } else {
-                // iOS: reload the JS bundle as a restart equivalent
-                Updates.reloadAsync().catch(() => {
-                  // Last resort: exit (not recommended on iOS but user requested it)
-                  BackHandler.exitApp();
-                });
-              }
-            },
-          },
-        ],
-        { cancelable: false },
-      );
+
+    if (Platform.OS === "web") {
+      // Web: apply immediately, no restart needed
+      setLang(next);
+      return;
     }
+
+    // Native: set RTL for next launch, then reload/exit
+    const shouldBeRTL = next === "ar";
+    I18nManager.allowRTL(shouldBeRTL);
+    I18nManager.forceRTL(shouldBeRTL);
+
+    // Try to reload the app immediately
+    try {
+      await Updates.reloadAsync();
+      return;
+    } catch {}
+
+    // If reload failed, close the app so user can reopen with correct RTL
+    Alert.alert(
+      next === "ar" ? "أعد تشغيل التطبيق" : "Restart Required",
+      next === "ar"
+        ? "اضغط لإعادة تشغيل التطبيق وتطبيق تغيير اللغة."
+        : "Tap to restart the app and apply the language change.",
+      [
+        {
+          text: next === "ar" ? "أعد التشغيل" : "Restart App",
+          onPress: () => BackHandler.exitApp(),
+        },
+      ],
+      { cancelable: false },
+    );
   };
 
   const toggle = () => applyLanguage(lang === "en" ? "ar" : "en");
