@@ -7,6 +7,7 @@ import { crossAlert } from "../../lib/alert";
 import { router, useFocusEffect } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as offlineDb from "../../lib/offlineDb";
+import { supabase } from "../../lib/supabase";
 import { useLanguage, TKey } from "../../context/LanguageContext";
 import { useTheme } from "../../context/ThemeContext";
 import { spacing, radii } from "../../constants/theme";
@@ -79,7 +80,7 @@ function formatFullDate(dateStr: string, lang: string = "en") {
 export default function DashboardScreen() {
   const { t, isRTL, lang } = useLanguage();
   const currentMonthName = new Date().toLocaleDateString(lang === "ar" ? "ar-SA-u-ca-gregory" : "en-US", { month: "long" });
-  const { colors: C, shadow } = useTheme();
+  const { colors: C, shadow, isDark } = useTheme();
   const { showOnboarding, completeOnboarding } = useOnboarding();
   const { rescheduleAll } = useNotification();
   const { user } = useAuth();
@@ -108,6 +109,7 @@ export default function DashboardScreen() {
   const [totalUnits, setTotalUnits] = useState(0);
   const [occupiedUnits, setOccupiedUnits] = useState(0);
   const [vacancyCost, setVacancyCost] = useState(0);
+  const [openMaintenanceCount, setOpenMaintenanceCount] = useState(0);
   const [tenantCounts, setTenantCounts] = useState({ total: 0, active: 0, expired: 0 });
   const [propertyOccs, setPropertyOccs] = useState<PropertyOcc[]>([]);
   const [updates, setUpdates] = useState<Update[]>([]);
@@ -212,6 +214,16 @@ export default function DashboardScreen() {
     const vacantUnits = units - leaseActiveTenants.length;
     const avgRentPerUnit = units > 0 ? totalMonthlyIncome / units : 0;
     setVacancyCost(vacantUnits > 0 ? vacantUnits * avgRentPerUnit : 0);
+
+    // Fetch open maintenance requests count
+    try {
+      const { count } = await supabase
+        .from("maintenance_requests")
+        .select("id", { count: "exact", head: true })
+        .eq("user_id", userId)
+        .in("status", ["open", "in_progress"]);
+      setOpenMaintenanceCount(count ?? 0);
+    } catch { setOpenMaintenanceCount(0); }
 
     // Compute unpaid tenants — any tenant whose payment is due this month and hasn't fully paid
     const today = new Date();
@@ -586,6 +598,27 @@ export default function DashboardScreen() {
                 </View>
               </View>
             </View>
+          )}
+
+          {/* Maintenance Requests Card */}
+          {openMaintenanceCount > 0 && (
+            <TouchableOpacity
+              style={{ backgroundColor: isDark ? "#1E293B" : "#EFF6FF", borderRadius: radii.lg, marginHorizontal: spacing.md, marginBottom: 12, padding: spacing.md, borderWidth: 1, borderColor: isDark ? "#334155" : "#BFDBFE" }}
+              onPress={() => router.push("/maintenance")}
+              activeOpacity={0.75}
+            >
+              <View style={[{ flexDirection: "row", alignItems: "center", gap: 8 }, isRTL && S.rowRev]}>
+                <Text style={{ fontSize: 20 }}>{"🔧"}</Text>
+                <View style={{ flex: 1 }}>
+                  <Text style={[{ fontSize: 14, fontWeight: "700", color: isDark ? "#93C5FD" : "#1E40AF" }, isRTL && { textAlign: "right" }]}>
+                    {openMaintenanceCount} {t("openRequests")}
+                  </Text>
+                  <Text style={[{ fontSize: 12, color: isDark ? "#60A5FA" : "#3B82F6", marginTop: 2 }, isRTL && { textAlign: "right" }]}>
+                    {t("viewMaintenanceRequests")} {"›"}
+                  </Text>
+                </View>
+              </View>
+            </TouchableOpacity>
           )}
 
           {/* Lease Expiry Warning */}

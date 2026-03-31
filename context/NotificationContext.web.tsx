@@ -26,6 +26,7 @@ export interface NotificationSettings {
   leaseExpiryDaysBefore: number;
   paymentConfirmationEnabled: boolean;
   soundEnabled: boolean;
+  whatsappEnabled: boolean;
 }
 
 export const DEFAULT_SETTINGS: NotificationSettings = {
@@ -36,6 +37,7 @@ export const DEFAULT_SETTINGS: NotificationSettings = {
   leaseExpiryDaysBefore: 14,
   paymentConfirmationEnabled: true,
   soundEnabled: true,
+  whatsappEnabled: true,
 };
 
 interface Tenant {

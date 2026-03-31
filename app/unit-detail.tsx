@@ -8,6 +8,7 @@ import {
   Platform,
   ScrollView,
   StyleSheet,
+  Switch,
   Text,
   TextInput,
   TouchableOpacity,
@@ -25,6 +26,7 @@ if (!isWeb) {
 import { router, useFocusEffect, useLocalSearchParams } from "expo-router";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import * as offlineDb from "../lib/offlineDb";
+import { supabase } from "../lib/supabase";
 import { useLanguage } from "../context/LanguageContext";
 import { useTheme } from "../context/ThemeContext";
 import { useNotification } from "../context/NotificationContext";
@@ -50,6 +52,9 @@ type Tenant = {
   lease_end: string;
   status: string;
   payment_frequency?: string;
+  whatsapp_enabled?: boolean;
+  maintenance_enabled?: boolean;
+  maintenance_token?: string;
 };
 
 type Payment = {
@@ -230,7 +235,7 @@ export default function UnitDetailScreen() {
     try {
       const { data } = await offlineDb.select("tenants", {
         userId: uid,
-        columns: "id, name, phone, unit_number, monthly_rent, lease_start, lease_end, status, payment_frequency",
+        columns: "id, name, phone, unit_number, monthly_rent, lease_start, lease_end, status, payment_frequency, whatsapp_enabled, maintenance_enabled, maintenance_token",
         eq: { property_id: propertyId, unit_number: unitNumber, status: "expired" },
         order: { column: "lease_end", ascending: false },
       });
@@ -863,6 +868,77 @@ export default function UnitDetailScreen() {
               + {t("addTenantToUnit")}
             </Text>
           </TouchableOpacity>
+        )}
+
+        {/* WhatsApp & Maintenance Settings */}
+        {!isExpired && (
+          <View style={[S.card, { marginBottom: 14 }]}>
+            <Text style={S.cardTitle}>{"⚙️ " + t("settings")}</Text>
+
+            {/* WhatsApp Toggle */}
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12, borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: C.border }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontWeight: "600", fontSize: 14 }}>{"📱 " + t("whatsappEnabled")}</Text>
+                <Text style={{ color: C.subText, fontSize: 12, marginTop: 2 }}>
+                  {tenant.phone ? t("whatsappEnabledDesc") : t("whatsappRequiresPhone")}
+                </Text>
+              </View>
+              <Switch
+                value={tenant.whatsapp_enabled !== false && !!tenant.phone}
+                disabled={!tenant.phone}
+                onValueChange={async (val) => {
+                  setTenant((prev) => prev ? { ...prev, whatsapp_enabled: val } : prev);
+                  await supabase.from("tenants").update({ whatsapp_enabled: val }).eq("id", tenant.id);
+                }}
+                trackColor={{ false: "#ccc", true: "#25D366" }}
+                thumbColor="#fff"
+              />
+            </View>
+
+            {/* Maintenance Toggle */}
+            <View style={{ flexDirection: isRTL ? "row-reverse" : "row", justifyContent: "space-between", alignItems: "center", paddingVertical: 12 }}>
+              <View style={{ flex: 1 }}>
+                <Text style={{ color: C.text, fontWeight: "600", fontSize: 14 }}>{"🔧 " + t("maintenanceEnabled")}</Text>
+                <Text style={{ color: C.subText, fontSize: 12, marginTop: 2 }}>{t("maintenanceEnabledDesc")}</Text>
+              </View>
+              <Switch
+                value={tenant.maintenance_enabled === true}
+                onValueChange={async (val) => {
+                  setTenant((prev) => prev ? { ...prev, maintenance_enabled: val } : prev);
+                  await supabase.from("tenants").update({ maintenance_enabled: val }).eq("id", tenant.id);
+                }}
+                trackColor={{ false: "#ccc", true: C.primary }}
+                thumbColor="#fff"
+              />
+            </View>
+
+            {/* Share Maintenance Link */}
+            {tenant.maintenance_enabled && tenant.maintenance_token && (
+              <TouchableOpacity
+                style={{ backgroundColor: "#25D366", borderRadius: radii.md, paddingVertical: 12, alignItems: "center", marginTop: 10 }}
+                onPress={() => {
+                  const link = `https://amlakey.vercel.app/maintenance-request?token=${tenant.maintenance_token}`;
+                  const phone = tenant.phone?.startsWith("0") ? "966" + tenant.phone.slice(1) : tenant.phone;
+                  const msg = lang === "ar"
+                    ? `مرحباً ${tenant.name}، يمكنك تقديم طلب صيانة عبر الرابط التالي:\n${link}`
+                    : `Hi ${tenant.name}, you can submit a maintenance request here:\n${link}`;
+                  if (phone) {
+                    Linking.openURL(`whatsapp://send?phone=${phone}&text=${encodeURIComponent(msg)}`).catch(() => {
+                      if (isWeb) window.alert(t("whatsappNotInstalled"));
+                      else showAlert(t("error"), t("whatsappNotInstalled"));
+                    });
+                  } else {
+                    Linking.openURL(`whatsapp://send?text=${encodeURIComponent(msg)}`).catch(() => {});
+                  }
+                }}
+                activeOpacity={0.8}
+              >
+                <Text style={{ color: "#fff", fontWeight: "700", fontSize: 14 }}>
+                  {"📤 " + t("shareMaintenanceLink")}
+                </Text>
+              </TouchableOpacity>
+            )}
+          </View>
         )}
 
         {/* Payment history */}

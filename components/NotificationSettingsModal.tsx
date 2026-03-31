@@ -130,6 +130,12 @@ export function NotificationSettingsModal({ visible, onClose }: Props) {
               <View style={S.card}>
                 <ToggleRow label={`🔊  ${t("notificationSound")}`} value={local.soundEnabled} onToggle={() => toggle("soundEnabled")} />
               </View>
+              <View style={S.card}>
+                <ToggleRow label={`📱  ${t("whatsappReminders")}`} value={local.whatsappEnabled} onToggle={() => toggle("whatsappEnabled")} />
+                {local.whatsappEnabled && (
+                  <Text style={[S.subLabel, { marginTop: 4 }, isRTL && { textAlign: "right" }]}>{t("whatsappRemindersDesc")}</Text>
+                )}
+              </View>
               <TouchableOpacity style={[S.saveBtn, { backgroundColor: C.primary }]} onPress={handleSave} activeOpacity={0.8}>
                 <Text style={S.saveBtnText}>{t("saveSettings")}</Text>
               </TouchableOpacity>
@@ -192,6 +198,14 @@ export function NotificationSettingsModal({ visible, onClose }: Props) {
           {/* Sound */}
           <View style={S.card}>
             <ToggleRow label={`🔊  ${t("notificationSound")}`} value={local.soundEnabled} onToggle={() => toggle("soundEnabled")} />
+          </View>
+
+          {/* WhatsApp */}
+          <View style={S.card}>
+            <ToggleRow label={`📱  ${t("whatsappReminders")}`} value={local.whatsappEnabled} onToggle={() => toggle("whatsappEnabled")} />
+            {local.whatsappEnabled && (
+              <Text style={[S.subLabel, { marginTop: 4 }, isRTL && { textAlign: "right" }]}>{t("whatsappRemindersDesc")}</Text>
+            )}
           </View>
 
           {/* Save */}
