@@ -685,6 +685,8 @@ const translations = {
     maintenanceSubmitted: "Submitted",
     openRequests: "Open Requests",
     viewMaintenanceRequests: "View Maintenance Requests",
+    viewImage: "View Image",
+    failedToLoadImage: "Failed to load image",
   },
   ar: {
     // Tabs
@@ -1364,6 +1366,8 @@ const translations = {
     maintenanceSubmitted: "تم التقديم",
     openRequests: "طلبات مفتوحة",
     viewMaintenanceRequests: "عرض طلبات الصيانة",
+    viewImage: "عرض الصورة",
+    failedToLoadImage: "فشل تحميل الصورة",
   },
 };
 

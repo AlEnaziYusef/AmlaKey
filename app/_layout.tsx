@@ -168,6 +168,8 @@ function RootNavigator() {
         <Stack.Screen name="privacy" options={{ headerShown: false }} />
         <Stack.Screen name="reset-password" options={{ headerShown: false }} />
         <Stack.Screen name="paywall" options={{ headerShown: false, presentation: "modal" }} />
+        <Stack.Screen name="maintenance" options={{ headerShown: false }} />
+        <Stack.Screen name="maintenance-request" options={{ headerShown: false }} />
       </Stack>
       {/* Splash overlay hides any flash of the wrong screen during redirect */}
       {(loading || !navigated || biometricEnabled === null) && (
